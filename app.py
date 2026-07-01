@@ -394,17 +394,13 @@ def inject_cyberpunk_css():
 # ---------------------------------------------------------
 # MOCK UPLOAD OBJECT FOR DYNAMIC DEMO SAMPLES
 # ---------------------------------------------------------
-class MockUploadedFile:
+import io
+
+class MockUploadedFile(io.BytesIO):
     def __init__(self, name, size, data):
+        super().__init__(data)
         self.name = name
         self.size = size
-        self.data = data
-    def read(self, *args, **kwargs):
-        return self.data
-    def seek(self, *args, **kwargs):
-        pass
-    def getvalue(self, *args, **kwargs):
-        return self.data
 
 # ---------------------------------------------------------
 # HELPER ACTIONS / VERDICTS
