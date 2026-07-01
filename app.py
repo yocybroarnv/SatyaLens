@@ -1,25 +1,8 @@
 import os
-import sys
-import subprocess
-
-# Self-healing OpenCV installer to resolve Streamlit Cloud libGL/libglib apt package conflicts
-try:
-    import cv2
-except ImportError:
-    # Force uninstall standard OpenCV packages
-    subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "opencv-python", "opencv-contrib-python", "opencv-python-headless", "opencv-contrib-python-headless"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    # Reinstall headless version
-    subprocess.run([sys.executable, "-m", "pip", "install", "--no-cache-dir", "opencv-python-headless"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    
-    # Clear Python module import cache
-    for m in list(sys.modules.keys()):
-        if m.startswith("cv2") or m.startswith("_cv2"):
-            sys.modules.pop(m, None)
-            
-    import cv2
-
+import cv2
 import json
 import tempfile
+import sys
 import hashlib
 import datetime
 import urllib.request
@@ -27,7 +10,6 @@ import numpy as np
 import streamlit as st
 from PIL import Image
 from PIL.ExifTags import TAGS
-
 # 1. CHECK CORE DEPENDENCIES (For Streamlit Cloud Compatibility)
 required_libs_installed = True
 missing_libs = []
