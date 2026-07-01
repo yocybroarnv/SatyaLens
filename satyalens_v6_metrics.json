@@ -1,0 +1,25 @@
+{
+  "project": "SatyaLens",
+  "version": "v6_full_final",
+  "model": "satyalens_v6_efficientnetb0",
+  "image_size": 224,
+  "accuracy": 0.7566666666666667,
+  "precision": 0.7938931297709924,
+  "recall": 0.6933333333333334,
+  "f1_score": 0.7402135231316725,
+  "roc_auc": 0.8450962962962963,
+  "features": [
+    "deepfake_detection",
+    "face_cropping",
+    "gradcam_explainability",
+    "video_frame_aggregation",
+    "passive_liveness_heuristic",
+    "identity_risk_scoring",
+    "streamlit_deployment"
+  ],
+  "classes": {
+    "0": "Real",
+    "1": "Fake"
+  },
+  "warning": "Passive liveness is heuristic, not certified biometric liveness."
+}
