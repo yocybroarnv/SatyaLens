@@ -26,25 +26,23 @@ except ImportError:
 if not required_libs_installed:
     st.set_page_config(
         page_title="SatyaLens: Compatibility Error",
-        page_icon="⚠️",
+        page_icon="!",
         layout="centered"
     )
     
     st.markdown("""
     <style>
-        .stApp { background-color: #F8FAFC; }
+        .stApp { background-color: #070B16; color: #F8FAFC; }
         .error-card {
-            background-color: #FFFFFF;
-            border: 1px solid #E5E7EB;
-            border-left: 5px solid #DC2626;
+            background-color: rgba(15, 23, 42, 0.78);
+            border: 1px solid rgba(239, 68, 68, 0.25);
             padding: 2rem;
             border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
             margin-top: 2rem;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
         .error-title {
-            color: #DC2626;
+            color: #EF4444;
             font-size: 1.5rem;
             font-weight: 700;
             margin-bottom: 1rem;
@@ -53,23 +51,23 @@ if not required_libs_installed:
     """, unsafe_allow_html=True)
     
     st.markdown('<div class="error-card">', unsafe_allow_html=True)
-    st.markdown('<div class="error-title">⚠️ Streamlit Cloud Compatibility Error</div>', unsafe_allow_html=True)
+    st.markdown('<div class="error-title">Streamlit Cloud Compatibility Error</div>', unsafe_allow_html=True)
     st.markdown(
         f"The application successfully compiled its dependencies, but the required machine learning packages "
-        f"**({', '.join(missing_libs)})** could not be loaded in this Python environment."
+        f"({', '.join(missing_libs)}) could not be loaded in this Python environment."
     )
-    st.markdown(f"**Current Python Runtime version:** `Python {sys.version.split()[0]}`")
+    st.markdown(f"Current Python Runtime version: Python {sys.version.split()[0]}")
     st.markdown(
         """
-        ### Why is this happening?
-        By default, Streamlit Community Cloud deployed your application on **Python 3.14**. 
+        Why is this happening?
+        By default, Streamlit Community Cloud deployed your application on Python 3.14. 
         TensorFlow does not support Python 3.14 on Linux yet, meaning it cannot be installed.
         
-        ### 🛠️ How to Resolve This (2-Step Fix):
-        1. **Go to your Streamlit Cloud Dashboard** at [share.streamlit.io](https://share.streamlit.io).
-        2. Click the **three dots ("...")** next to your app, choose **Settings**, and under **Advanced settings**, set the **Python version** to **3.12** or **3.11**.
+        How to Resolve This (2-Step Fix):
+        1. Go to your Streamlit Cloud Dashboard at share.streamlit.io.
+        2. Click the three dots next to your app, choose Settings, and under Advanced settings, set the Python version to 3.12 or 3.11.
         
-        Once you click **Save**, the application environment will automatically rebuild with the selected Python version, install TensorFlow and SciPy, and launch successfully!
+        Once you click Save, the application environment will automatically rebuild with the selected Python version, install TensorFlow and SciPy, and launch successfully!
         """
     )
     st.markdown('</div>', unsafe_allow_html=True)
@@ -81,9 +79,6 @@ from PIL import Image
 
 # Import modular utilities
 from utils.face_detection import FaceDetector
-from utils.robustness import run_robustness_test
-from utils.pdf_report import generate_pdf_report
-from utils.model_export import export_to_tflite, export_to_onnx
 
 # ---------------------------------------------------------
 # CONSTANTS & PATHS
@@ -98,287 +93,285 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 face_detector = FaceDetector()
 
 # ---------------------------------------------------------
-# SESSION STATE INITIALIZATION
+# CYBERPUNK SENTINEL THEME INJECTION
 # ---------------------------------------------------------
-if "theme" not in st.session_state:
-    st.session_state.theme = "System Default"
-
-# ---------------------------------------------------------
-# STYLING & THEME INJECTION
-# ---------------------------------------------------------
-def apply_theme():
-    theme = st.session_state.theme
-    if theme == "Light Mode":
-        vars = """
-            --bg-color: #F8FAFC;
-            --card-bg: #FFFFFF;
-            --card-secondary: #F1F5F9;
-            --text-color: #111827;
-            --muted-text: #6B7280;
-            --border-color: #E5E7EB;
-            --accent-color: #2563EB;
-            --success-color: #16A34A;
-            --warning-color: #F59E0B;
-            --danger-color: #DC2626;
-            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-            --sidebar-bg: #FFFFFF;
-            --code-bg: #F1F5F9;
-        """
-    elif theme == "Dark Mode":
-        vars = """
-            --bg-color: #0F172A;
-            --card-bg: #111827;
-            --card-secondary: #1F2937;
-            --text-color: #F9FAFB;
-            --muted-text: #CBD5E1;
-            --border-color: #334155;
-            --accent-color: #38BDF8;
-            --success-color: #22C55E;
-            --warning-color: #FBBF24;
-            --danger-color: #F87171;
-            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
-            --sidebar-bg: #0B0F19;
-            --code-bg: #1F2937;
-        """
-    else:  # System Default
-        vars = """
-            --bg-color: #F8FAFC;
-            --card-bg: #FFFFFF;
-            --card-secondary: #F1F5F9;
-            --text-color: #0F172A;
-            --muted-text: #475569;
-            --border-color: #E2E8F0;
-            --accent-color: #0EA5E9;
-            --success-color: #10B981;
-            --warning-color: #F59E0B;
-            --danger-color: #EF4444;
-            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-            --sidebar-bg: #FFFFFF;
-            --code-bg: #F8FAFC;
-        """
-
-    css = f"""
+def inject_cyberpunk_css():
+    css = """
     <style>
-        .stApp {{
-            {vars}
-            background-color: var(--bg-color) !important;
-            color: var(--text-color) !important;
-        }}
+        /* Base page styling */
+        .stApp {
+            background-color: #070B16 !important;
+            color: #F8FAFC !important;
+            background-image: radial-gradient(circle at 50% 50%, #0F172A 0%, #070B16 100%) !important;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        }
         
-        /* Sidebar container */
-        [data-testid="stSidebar"] {{
-            background-color: var(--sidebar-bg) !important;
-            border-right: 1px solid var(--border-color) !important;
-        }}
+        /* Sidebar styling */
+        [data-testid="stSidebar"] {
+            background-color: #090E1A !important;
+            border-right: 1px solid rgba(56, 189, 248, 0.15) !important;
+        }
         
-        /* Sidebar text color overrides */
-        [data-testid="stSidebar"] *, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label {{
-            color: var(--text-color) !important;
-        }}
+        [data-testid="stSidebar"] * {
+            color: #CBD5E1 !important;
+        }
         
-        /* Global Text overrides */
-        .stApp p, .stApp span, .stApp label, .stApp li, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 {{
-            color: var(--text-color) !important;
-        }}
+        /* Container max-width and padding */
+        .block-container {
+            max-width: 1100px !important;
+            padding-top: 2rem !important;
+            padding-bottom: 2rem !important;
+        }
         
-        /* Muted overrides */
-        .stApp caption, .muted-text, .stApp .stCaption, .stApp figcaption {{
-            color: var(--muted-text) !important;
-        }}
-        
-        /* Premium Card */
-        .dashboard-card {{
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
+        /* Glassmorphism Card */
+        .glass-card {
+            background: rgba(15, 23, 42, 0.78) !important;
+            border: 1px solid rgba(56, 189, 248, 0.22) !important;
             padding: 1.5rem;
             border-radius: 12px;
-            box-shadow: var(--shadow);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             margin-bottom: 1.5rem;
-        }}
+            transition: border-color 0.2s ease;
+        }
+        .glass-card:hover {
+            border-color: rgba(56, 189, 248, 0.4) !important;
+            box-shadow: 0 8px 32px 0 rgba(56, 189, 248, 0.08);
+        }
         
-        .dashboard-card-secondary {{
-            background-color: var(--card-secondary);
-            border: 1px solid var(--border-color);
+        .glass-card-secondary {
+            background: rgba(30, 41, 59, 0.72) !important;
+            border: 1px solid rgba(56, 189, 248, 0.12) !important;
             padding: 1rem;
             border-radius: 8px;
             margin-bottom: 1rem;
-        }}
+        }
         
-        /* Headers */
-        .dashboard-header {{
-            font-size: 2.5rem;
-            font-weight: 800;
-            margin-bottom: 0.25rem;
-            letter-spacing: -0.025em;
-        }}
+        /* Headers & Typography */
+        .cyber-title {
+            font-size: 2.8rem;
+            font-weight: 900;
+            background: linear-gradient(90deg, #38BDF8 0%, #8B5CF6 50%, #EC4899 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.1rem;
+            letter-spacing: -0.03em;
+        }
         
-        .dashboard-subtitle {{
+        .cyber-subtitle {
             font-size: 1.15rem;
+            color: #38BDF8 !important;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
             margin-bottom: 1.5rem;
-        }}
+        }
         
         /* Use-Case Chips */
-        .chip-container {{
+        .chip-container {
             margin-bottom: 1.5rem;
             display: flex;
             flex-wrap: wrap;
             gap: 0.5rem;
-        }}
+        }
         
-        .chip {{
+        .chip {
             display: inline-block;
-            background-color: var(--card-secondary);
-            color: var(--accent-color) !important;
-            border: 1px solid var(--border-color);
+            background-color: rgba(30, 41, 59, 0.6);
+            color: #38BDF8 !important;
+            border: 1px solid rgba(56, 189, 248, 0.25);
             padding: 0.35rem 0.85rem;
             border-radius: 9999px;
             font-size: 0.8rem;
             font-weight: 600;
-        }}
+            letter-spacing: 0.02em;
+        }
         
         /* Risk Badges */
-        .risk-badge {{
+        .risk-badge {
             display: inline-block;
             padding: 0.35rem 0.85rem;
             border-radius: 9999px;
             font-weight: 700;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             text-align: center;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             border: 1px solid transparent;
-        }}
+        }
         
-        .risk-badge-low {{
-            background-color: rgba(22, 163, 74, 0.1);
-            color: var(--success-color) !important;
-            border-color: rgba(22, 163, 74, 0.2);
-        }}
+        .risk-badge-low {
+            background-color: rgba(34, 197, 94, 0.1);
+            color: #22C55E !important;
+            border-color: rgba(34, 197, 94, 0.25);
+        }
         
-        .risk-badge-suspicious {{
+        .risk-badge-suspicious {
             background-color: rgba(245, 158, 11, 0.1);
-            color: var(--warning-color) !important;
-            border-color: rgba(245, 158, 11, 0.2);
-        }}
+            color: #F59E0B !important;
+            border-color: rgba(245, 158, 11, 0.25);
+        }
         
-        .risk-badge-high {{
-            background-color: rgba(220, 38, 38, 0.1);
-            color: var(--danger-color) !important;
-            border-color: rgba(220, 38, 38, 0.2);
-        }}
+        .risk-badge-high {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: #EF4444 !important;
+            border-color: rgba(239, 68, 68, 0.25);
+        }
         
         /* Custom Progress Bar */
-        .progress-container {{
+        .progress-container {
             margin: 0.85rem 0;
-        }}
-        .progress-bar-bg {{
-            background-color: var(--card-secondary);
+        }
+        .progress-bar-bg {
+            background-color: rgba(30, 41, 59, 0.5);
             border-radius: 9999px;
-            height: 12px;
+            height: 10px;
             width: 100%;
             overflow: hidden;
-            border: 1px solid var(--border-color);
-        }}
-        .progress-bar-fill {{
+            border: 1px solid rgba(56, 189, 248, 0.15);
+        }
+        .progress-bar-fill {
             height: 100%;
             border-radius: 9999px;
             transition: width 0.4s ease;
-        }}
+        }
         
         /* Custom Tables */
-        .metrics-table {{
+        .metrics-table {
             width: 100%;
             border-collapse: collapse;
             margin: 1rem 0;
-            font-size: 0.9rem;
-        }}
-        .metrics-table th {{
-            background-color: var(--card-secondary);
-            color: var(--text-color) !important;
+            font-size: 0.88rem;
+        }
+        .metrics-table th {
+            background-color: rgba(30, 41, 59, 0.5);
+            color: #F8FAFC !important;
             font-weight: 600;
             text-align: left;
             padding: 0.75rem;
-            border-bottom: 2px solid var(--border-color);
-        }}
-        .metrics-table td {{
+            border-bottom: 2px solid rgba(56, 189, 248, 0.2);
+        }
+        .metrics-table td {
             padding: 0.75rem;
-            border-bottom: 1px solid var(--border-color);
-            color: var(--muted-text) !important;
-        }}
+            border-bottom: 1px solid rgba(56, 189, 248, 0.1);
+            color: #CBD5E1 !important;
+        }
         
         /* Recommendation Alert Boxes */
-        .action-box {{
+        .action-box {
             padding: 1.25rem;
             border-radius: 8px;
-            font-size: 0.9rem;
+            font-size: 0.88rem;
             line-height: 1.5;
             margin-top: 1rem;
             margin-bottom: 1rem;
             border: 1px solid;
-        }}
-        .action-low {{
-            background-color: rgba(22, 163, 74, 0.05);
-            color: var(--success-color) !important;
-            border-color: rgba(22, 163, 74, 0.2);
-        }}
-        .action-suspicious {{
+        }
+        .action-low {
+            background-color: rgba(34, 197, 94, 0.05);
+            color: #22C55E !important;
+            border-color: rgba(34, 197, 94, 0.25);
+        }
+        .action-suspicious {
             background-color: rgba(245, 158, 11, 0.05);
-            color: var(--warning-color) !important;
-            border-color: rgba(245, 158, 11, 0.2);
-        }}
-        .action-high {{
-            background-color: rgba(220, 38, 38, 0.05);
-            color: var(--danger-color) !important;
-            border-color: rgba(220, 38, 38, 0.2);
-        }}
+            color: #F59E0B !important;
+            border-color: rgba(245, 158, 11, 0.25);
+        }
+        .action-high {
+            background-color: rgba(239, 68, 68, 0.05);
+            color: #EF4444 !important;
+            border-color: rgba(239, 68, 68, 0.25);
+        }
         
         /* Sidebar Metrics Grid */
-        .sidebar-metrics-grid {{
+        .sidebar-metrics-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 0.5rem;
             margin-top: 0.5rem;
-        }}
-        .sidebar-metric-card {{
-            background-color: var(--card-secondary);
-            border: 1px solid var(--border-color);
+        }
+        .sidebar-metric-card {
+            background-color: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(56, 189, 248, 0.12);
             border-radius: 6px;
             padding: 0.5rem;
             text-align: center;
-        }}
-        .sidebar-metric-val {{
+        }
+        .sidebar-metric-val {
             font-size: 1rem;
             font-weight: 700;
-            color: var(--text-color) !important;
-        }}
-        .sidebar-metric-lbl {{
+            color: #38BDF8 !important;
+        }
+        .sidebar-metric-lbl {
             font-size: 0.7rem;
-            color: var(--muted-text) !important;
-        }}
+            color: #94A3B8 !important;
+        }
+        
+        /* File Uploader styling override */
+        [data-testid="stFileUploader"] {
+            background-color: rgba(30, 41, 59, 0.4) !important;
+            border: 1px dashed rgba(56, 189, 248, 0.3) !important;
+            border-radius: 8px !important;
+            padding: 1rem !important;
+        }
+        [data-testid="stFileUploader"] * {
+            color: #CBD5E1 !important;
+        }
+        
+        /* Widget Overrides */
+        .stButton>button {
+            background-color: rgba(37, 99, 235, 0.2) !important;
+            color: #38BDF8 !important;
+            border: 1px solid rgba(56, 189, 248, 0.3) !important;
+            border-radius: 6px !important;
+            font-weight: 600 !important;
+            transition: all 0.2s ease !important;
+        }
+        .stButton>button:hover {
+            background-color: rgba(56, 189, 248, 0.3) !important;
+            border-color: #38BDF8 !important;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+        }
+        
+        /* Tabs override */
+        .stTabs [data-baseweb="tab-list"] {
+            background-color: rgba(15, 23, 42, 0.4) !important;
+            border-radius: 8px !important;
+            border-bottom: 1px solid rgba(56, 189, 248, 0.15) !important;
+            padding: 0.2rem !important;
+        }
+        .stTabs [data-baseweb="tab"] {
+            color: #94A3B8 !important;
+            font-weight: 600 !important;
+            background-color: transparent !important;
+            border: none !important;
+            transition: all 0.2s ease !important;
+        }
+        .stTabs [aria-selected="true"] {
+            color: #38BDF8 !important;
+            border-bottom: 2px solid #38BDF8 !important;
+        }
         
         /* Code blocks */
-        code {{
-            background-color: var(--card-secondary) !important;
-            color: var(--accent-color) !important;
+        code {
+            background-color: rgba(30, 41, 59, 0.5) !important;
+            color: #38BDF8 !important;
             padding: 0.15rem 0.35rem !important;
             border-radius: 4px;
             font-size: 0.85em;
-        }}
+        }
+        
+        /* Global Text overrides */
+        .stMarkdown div, .stMarkdown p, .stMarkdown span {
+            color: #CBD5E1;
+        }
     </style>
     """
     st.markdown(css, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# ST.SET_PAGE_CONFIG (Must run before any other st command)
-# ---------------------------------------------------------
-st.set_page_config(
-    page_title="SatyaLens: Advanced AI Security Hub",
-    page_icon="🔍",
-    layout="centered"
-)
-
-# ---------------------------------------------------------
-# CORE MODEL LOADING (WITH RESOURCE CACHING)
+# CORE MODEL LOADING & METRICS
 # ---------------------------------------------------------
 @st.cache_resource
 def load_deepfake_model():
@@ -397,105 +390,41 @@ if os.path.exists(METRICS_PATH):
         pass
 
 # ---------------------------------------------------------
-# UI HELPER GENERATORS
-# ---------------------------------------------------------
-def get_risk_badge_html(risk_label):
-    if risk_label == "Low Risk":
-        return '<span class="risk-badge risk-badge-low">🟢 Low Risk</span>'
-    elif risk_label == "Suspicious":
-        return '<span class="risk-badge risk-badge-suspicious">🟡 Suspicious</span>'
-    else:
-        return '<span class="risk-badge risk-badge-high">🔴 High Risk</span>'
-
-def get_pred_badge_html(pred_label):
-    if pred_label == "Real":
-        return '<span class="risk-badge risk-badge-low">Real</span>'
-    else:
-        return '<span class="risk-badge risk-badge-high">Fake</span>'
-
-def get_progress_bar_html(percentage, color):
-    return f"""
-    <div class="progress-container">
-        <div class="progress-bar-bg">
-            <div class="progress-bar-fill" style="width: {percentage}%; background-color: {color};"></div>
-        </div>
-    </div>
-    """
-
-def get_recommendation_box_html(risk_label):
-    if risk_label == "Low Risk":
-        return """
-        <div class="action-box action-low">
-            <strong>Recommended Action:</strong> Normal review may continue. The media did not present significant synthetic/manipulated indicators. Do not treat this automated result as definitive proof of authenticity.
-        </div>
-        """
-    elif risk_label == "Suspicious":
-        return """
-        <div class="action-box action-suspicious">
-            <strong>Recommended Action:</strong> Manual review is recommended. Ask the applicant/user for secondary verification or live liveness checks. Evaluate matching identity records for discrepancy signals.
-        </div>
-        """
-    else:
-        return """
-        <div class="action-box action-high">
-            <strong>Recommended Action:</strong> Possible deepfake or synthetic identity attempt. Strong manual verification is required. Reject automated bypasses, hold onboarding status, and trigger a security review of the submission.
-        </div>
-        """
-
-def estimate_risk_category(fake_probability):
-    score = fake_probability * 100
-    if score < 30.0:
-        return "Low Risk", "Normal review may continue. Do not treat result as final proof."
-    elif score < 66.0:
-        return "Suspicious", "Manual review recommended. Ask for additional verification."
-    else:
-        return "High Risk", "Possible deepfake or synthetic identity attempt. Strong manual verification required."
-
-# ---------------------------------------------------------
 # SIDEBAR RENDER
 # ---------------------------------------------------------
 def render_sidebar():
-    st.sidebar.markdown('<h2 style="margin-top: 0; margin-bottom: 0.1rem;">🔍 SatyaLens</h2>', unsafe_allow_html=True)
-    st.sidebar.markdown('<span style="font-size:0.85rem; opacity:0.7;">AI Security Dashboard</span>', unsafe_allow_html=True)
+    st.sidebar.markdown('<h2 style="margin-top: 0; margin-bottom: 0.1rem;">SatyaLens</h2>', unsafe_allow_html=True)
+    st.sidebar.markdown('<span style="font-size:0.8rem; opacity:0.7; color:#38BDF8 !important; text-transform:uppercase; letter-spacing:0.05em;">AI Security Command Dashboard</span>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div style="margin-top:0.35rem;"><span class="risk-badge risk-badge-suspicious" style="padding: 0.1rem 0.4rem; font-size:0.65rem;">Research Prototype</span></div>', unsafe_allow_html=True)
     st.sidebar.markdown("---")
     
     # Workspace Mode Switcher
-    st.sidebar.markdown("### 🛠️ Workspace Mode")
+    st.sidebar.markdown("### Workspace")
     dashboard_mode = st.sidebar.selectbox(
         "Select Interface Style:",
-        ["Recruiter (Simplified)", "Investigator (Expert)"],
-        index=0
+        ["Recruiter Mode", "Investigator Mode"],
+        index=0,
+        label_visibility="collapsed"
     )
     
-    # Theme Selection
-    st.sidebar.markdown("### 🎨 Interface Theme")
-    theme_sel = st.sidebar.selectbox(
-        "Select Layout Theme:",
-        ["System Default", "Light Mode", "Dark Mode"],
-        index=["System Default", "Light Mode", "Dark Mode"].index(st.session_state.theme)
-    )
-    if theme_sel != st.session_state.theme:
-        st.session_state.theme = theme_sel
-        st.rerun()
-        
     st.sidebar.markdown("---")
     
     # System Status Tracker
-    st.sidebar.markdown("### ⚙️ System Status")
+    st.sidebar.markdown("### System Status")
     if model_exists:
-        st.sidebar.markdown('<span class="risk-badge risk-badge-low" style="padding: 0.15rem 0.5rem; font-size:0.75rem;">🟢 Model Loaded (Ready)</span>', unsafe_allow_html=True)
-        st.sidebar.caption(f"Weights file: `{MODEL_PATH}`")
+        st.sidebar.markdown('<span class="risk-badge risk-badge-low" style="padding: 0.15rem 0.5rem; font-size:0.75rem;">Model Loaded</span>', unsafe_allow_html=True)
+        st.sidebar.caption(f"Filename: `{MODEL_PATH}`")
     else:
-        st.sidebar.markdown('<span class="risk-badge risk-badge-high" style="padding: 0.15rem 0.5rem; font-size:0.75rem;">🔴 Model Weights Missing</span>', unsafe_allow_html=True)
+        st.sidebar.markdown('<span class="risk-badge risk-badge-high" style="padding: 0.15rem 0.5rem; font-size:0.75rem;">Model Missing</span>', unsafe_allow_html=True)
         st.sidebar.markdown(
-            "Model file not found. Expected: `satyalens_v6_efficientnetb0.keras`. "
-            "Place it in the same folder as `app.py`.", 
+            "Model file not found. Expected: satyalens_v6_efficientnetb0.keras. "
+            "Place it in the same folder as app.py.", 
             unsafe_allow_html=True
         )
     
     # Model Performance metrics
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### 📊 Benchmark Metrics")
+    st.sidebar.markdown("### Benchmark Metrics")
     if metrics_data:
         html_metrics = f"""
         <div class="sidebar-metrics-grid">
@@ -523,29 +452,29 @@ def render_sidebar():
         
     # Risk Guidelines
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### 🎯 Risk Guidelines")
+    st.sidebar.markdown("### Risk Guidelines")
     st.sidebar.markdown(
         """
-        - **0 - 29%**: <span style="color:var(--success-color); font-weight:bold;">Low Risk</span>
-        - **30 - 66%**: <span style="color:var(--warning-color); font-weight:bold;">Suspicious</span>
-        - **67 - 100%**: <span style="color:var(--danger-color); font-weight:bold;">High Risk</span>
+        - **0 - 29%**: <span style="color:#22C55E; font-weight:bold;">Low Risk</span>
+        - **30 - 66%**: <span style="color:#F59E0B; font-weight:bold;">Suspicious</span>
+        - **67 - 100%**: <span style="color:#EF4444; font-weight:bold;">High Risk</span>
         """,
         unsafe_allow_html=True
     )
     
     # Supported formats
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### 📁 Supported Formats")
+    st.sidebar.markdown("### Supported Formats")
     st.sidebar.markdown(
         """
-        - **Images**: JPG, JPEG, PNG, WEBP
-        - **Videos**: MP4, AVI, MOV, MKV, WEBM
+        - Images: JPG, JPEG, PNG, WEBP
+        - Videos: MP4, AVI, MOV, MKV, WEBM
         """
     )
     
     # Responsible AI Use
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### ⚖️ Responsible AI Note")
+    st.sidebar.markdown("### Responsible AI")
     st.sidebar.caption(
         "SatyaLens supports manual review workflows. "
         "It is not an automated gatekeeper or final decision system."
@@ -553,14 +482,14 @@ def render_sidebar():
     
     # Developer Card
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### 👨‍💻 Developer")
+    st.sidebar.markdown("### Developer")
     st.sidebar.markdown(
         """
-        <div class="dashboard-card-secondary" style="margin-bottom:0; padding:0.75rem;">
-            <strong style="font-size:0.85rem; color:var(--text-color);">Arnav Raj (Cybroarnv)</strong>
+        <div class="glass-card-secondary" style="margin-bottom:0; padding:0.75rem; border-color:rgba(139, 92, 246, 0.25);">
+            <strong style="font-size:0.85rem; color:#F8FAFC;">Arnav Raj (Cybroarnv)</strong>
             <div style="font-size:0.75rem; margin-top:0.25rem;">
-                <a href="https://github.com/yocybroarnv" target="_blank" style="color:var(--accent-color); text-decoration:none; margin-right:0.5rem;">GitHub</a>
-                <a href="https://www.linkedin.com/in/arnav-raj-professional" target="_blank" style="color:var(--accent-color); text-decoration:none;">LinkedIn</a>
+                <a href="https://github.com/yocybroarnv" target="_blank" style="color:#38BDF8; text-decoration:none; margin-right:0.5rem;">GitHub</a>
+                <a href="https://www.linkedin.com/in/arnav-raj-professional" target="_blank" style="color:#38BDF8; text-decoration:none;">LinkedIn</a>
             </div>
         </div>
         """,
@@ -569,16 +498,16 @@ def render_sidebar():
     
     return dashboard_mode
 
-# Apply selected theme variables
-apply_theme()
+# Apply selected styling and render sidebar
+inject_cyberpunk_css()
 dashboard_mode = render_sidebar()
 
 # ---------------------------------------------------------
 # HERO SECTION RENDER
 # ---------------------------------------------------------
 def render_hero():
-    st.markdown('<h1 class="dashboard-header">🔍 SatyaLens</h1>', unsafe_allow_html=True)
-    st.markdown('<div class="dashboard-subtitle">Deepfake Detection & Identity-Risk Estimator</div>', unsafe_allow_html=True)
+    st.markdown('<h1 class="cyber-title">SatyaLens</h1>', unsafe_allow_html=True)
+    st.markdown('<div class="cyber-subtitle">Deepfake Detection & Identity-Risk Estimator</div>', unsafe_allow_html=True)
     
     st.markdown(
         """
@@ -603,8 +532,8 @@ def render_hero():
     # Disclaimer
     st.markdown(
         """
-        <div class="dashboard-card" style="border-left: 4px solid var(--warning-color); background-color: rgba(245, 158, 11, 0.05); padding: 1rem 1.25rem;">
-            <strong style="color: var(--warning-color); font-size: 0.9rem;">⚠️ Research Prototype Disclaimer:</strong>
+        <div class="glass-card" style="border-left: 4px solid var(--warning-color); background-color: rgba(245, 158, 11, 0.05); padding: 1rem 1.25rem;">
+            <strong style="color: var(--warning-color); font-size: 0.9rem;">Research Prototype Disclaimer:</strong>
             <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; line-height: 1.4; color: var(--muted-text);">
                 This is a research prototype for manual review support. It is not a certified biometric, legal, KYC, hiring, or surveillance system.
             </p>
@@ -616,25 +545,84 @@ def render_hero():
 render_hero()
 
 # ---------------------------------------------------------
-# LOAD MODEL & HANDLE EXPORTS / DIAGNOSTICS
+# CAPABILITY CARDS RENDER
 # ---------------------------------------------------------
+def render_capability_cards():
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown(
+            """
+            <div class="glass-card-secondary" style="height: 100%; min-height: 140px; border-color: rgba(56, 189, 248, 0.25);">
+                <div style="font-size:0.7rem; color:#38BDF8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.25rem;">Active</div>
+                <strong style="font-size:0.9rem; color:#F8FAFC; display:block;">Deepfake Detection</strong>
+                <p style="font-size:0.75rem; color:#94A3B8; margin-top:0.25rem; line-height:1.3;">
+                    Classifies uploaded face media as real or potentially synthetic.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    with col2:
+        st.markdown(
+            """
+            <div class="glass-card-secondary" style="height: 100%; min-height: 140px; border-color: rgba(139, 92, 246, 0.25);">
+                <div style="font-size:0.7rem; color:#8B5CF6; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.25rem;">Active</div>
+                <strong style="font-size:0.9rem; color:#F8FAFC; display:block;">Video Aggregation</strong>
+                <p style="font-size:0.75rem; color:#94A3B8; margin-top:0.25rem; line-height:1.3;">
+                    Samples multiple frames and combines frame-level predictions.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    with col3:
+        st.markdown(
+            """
+            <div class="glass-card-secondary" style="height: 100%; min-height: 140px; border-color: rgba(236, 72, 153, 0.25);">
+                <div style="font-size:0.7rem; color:#EC4899; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.25rem;">Active</div>
+                <strong style="font-size:0.9rem; color:#F8FAFC; display:block;">Passive Liveness</strong>
+                <p style="font-size:0.75rem; color:#94A3B8; margin-top:0.25rem; line-height:1.3;">
+                    Estimates spoof-risk using motion, sharpness, texture, and color richness.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    with col4:
+        st.markdown(
+            """
+            <div class="glass-card-secondary" style="height: 100%; min-height: 140px; border-color: rgba(56, 189, 248, 0.25);">
+                <div style="font-size:0.7rem; color:#38BDF8; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.25rem;">Active</div>
+                <strong style="font-size:0.9rem; color:#F8FAFC; display:block;">Grad-CAM Explain</strong>
+                <p style="font-size:0.75rem; color:#94A3B8; margin-top:0.25rem; line-height:1.3;">
+                    Shows visual regions that influenced model prediction.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    st.markdown('<div style="margin-bottom:1.5rem;"></div>', unsafe_allow_html=True)
+
+render_capability_cards()
+
+# Load Keras Model
 model = None
 if model_exists:
     try:
         model = load_deepfake_model()
     except Exception as e:
-        st.error(f"Failed to load core neural network weights: {e}")
+        st.error(f"Failed to load core neural network: {e}")
         st.stop()
 else:
     st.markdown(
         """
-        <div class="dashboard-card" style="border-left: 4px solid var(--danger-color); background-color: rgba(220, 38, 38, 0.05);">
-            <strong style="color: var(--danger-color);">🔴 Core Model Weights Missing</strong>
+        <div class="glass-card" style="border-left: 4px solid var(--danger-color); background-color: rgba(220, 38, 38, 0.05);">
+            <strong style="color: var(--danger-color);">Core Model Weights Missing</strong>
             <p style="margin: 0.5rem 0; font-size: 0.9rem;">
-                The core deep learning model <code>satyalens_v6_efficientnetb0.keras</code> is not present in the workspace folder.
+                The core deep learning model weights file <code>satyalens_v6_efficientnetb0.keras</code> was not found.
             </p>
             <p style="margin: 0; font-size: 0.9rem;">
-                Please refer to the setup steps in <strong>MODEL_DOWNLOAD.md</strong> to place the weights before running inference.
+                Please follow the download setup steps in MODEL_DOWNLOAD.md to continue.
             </p>
         </div>
         """,
@@ -643,7 +631,7 @@ else:
     st.stop()
 
 # ---------------------------------------------------------
-# IMAGE PREDICTION ENGINE
+# IMAGE INFERENCE HELPER
 # ---------------------------------------------------------
 def predict_rgb(rgb):
     cropped, detected, method = face_detector.detect_and_crop(rgb)
@@ -654,7 +642,7 @@ def predict_rgb(rgb):
     return fake_prob, cropped, detected, method
 
 # ---------------------------------------------------------
-# VIDEO TEMELINE SAMPLING & LIVENESS HEURISTICS
+# LIVENESS & TIMELINE SAMPLING
 # ---------------------------------------------------------
 def calculate_passive_liveness_heuristics(frames):
     if len(frames) == 0:
@@ -697,7 +685,7 @@ def calculate_passive_liveness_heuristics(frames):
     elif liveness_score >= 40:
         label = "Uncertain"
     else:
-        label = "Possible spoof/static/replay media"
+        label = "Possible spoof or replay media"
 
     return {
         "liveness_score": round(liveness_score, 2),
@@ -748,7 +736,6 @@ def predict_video_aggregate(path):
     top3_prob = float(np.mean(np.sort(probs)[-min(3, len(probs)):]))
     high_risk_ratio = float(np.mean(probs >= 0.66))
 
-    # Aggregated deepfake risk
     deepfake_risk = (
         0.50 * mean_prob +
         0.25 * median_prob +
@@ -776,7 +763,7 @@ def predict_video_aggregate(path):
     }, frames
 
 # ---------------------------------------------------------
-# GRAD-CAM HEATMAP VISUALIZER
+# GRAD-CAM EXPLAINABILITY heatmaps
 # ---------------------------------------------------------
 def get_nested_base_model(full_model):
     for layer in full_model.layers:
@@ -856,106 +843,42 @@ def make_gradcam_overlay(rgb, alpha=0.45):
 # ---------------------------------------------------------
 # UPLOAD SECTION
 # ---------------------------------------------------------
-st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
-st.markdown("### 📥 Media Analysis Intake")
-st.markdown('<span class="muted-text">Upload a face image or short video for AI-assisted risk analysis.</span>', unsafe_allow_html=True)
+st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+st.markdown("<h3 style='margin-top: 0;'>Media Analysis Intake</h3>", unsafe_allow_html=True)
+st.markdown("<span class='muted-text'>Upload a face image or short video for AI-assisted risk analysis.</span>", unsafe_allow_html=True)
 
 uploaded_file = st.file_uploader(
-    "Drag & Drop File Here:",
+    "Media File Upload",
     type=["jpg", "jpeg", "png", "webp", "mp4", "avi", "mov", "mkv", "webm"],
     label_visibility="collapsed"
 )
+st.markdown("<span style='font-size:0.8rem; color:#94A3B8;'>Supported formats: JPG, JPEG, PNG, WEBP, MP4, AVI, MOV, MKV, WEBM</span>", unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# EMPTY STATE OR SCAN WORKFLOW
+# EXECUTE SCAN / PREVIEW
 # ---------------------------------------------------------
 if not uploaded_file:
-    # Render Empty State
+    # Awaiting Media Upload Empty State
     st.markdown(
         """
-        <div class="dashboard-card" style="text-align: center; padding: 3rem 1.5rem; margin-top: 1rem;">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">📥</div>
-            <h3 style="margin-top: 0;">Awaiting Media Upload</h3>
-            <p class="muted-text" style="max-width: 450px; margin: 0 auto;">
-                Please upload a JPEG/PNG face image or an MP4/AVI video in the file uploader above to trigger the inference pipeline.
+        <div class="glass-card" style="text-align: center; padding: 3rem 1.5rem;">
+            <h3 style="margin-top: 0; color: #F8FAFC;">Awaiting Media Upload</h3>
+            <p class="muted-text" style="max-width: 500px; margin: 0.5rem auto 0 auto; line-height: 1.45;">
+                Upload a face image or short video in the intake panel above to generate risk signals, 
+                explainability maps, and manual-review recommendations.
             </p>
         </div>
         """,
         unsafe_allow_html=True
     )
-    
-    # If no upload in Investigator Mode, show baseline metrics & Future Scope as background info
-    if dashboard_mode == "Investigator (Expert)":
-        st.markdown("---")
-        tab_bg1, tab_bg2 = st.tabs(["📝 Model Specifications", "🗺️ Development Roadmap"])
-        with tab_bg1:
-            st.markdown("### Model Specifications & Benchmarks")
-            st.markdown(
-                "This dashboard executes inference on a Keras **EfficientNetB0** model trained on deepfake datasets. "
-                "The face detector pipeline isolates faces before feeding the inputs to the CNN model."
-            )
-            col_spec1, col_spec2 = st.columns(2)
-            with col_spec1:
-                st.markdown(
-                    """
-                    **Model Details:**
-                    - Architecture: EfficientNetB0 Transfer Learning
-                    - Input Dimensions: 224x224 RGB
-                    - Outputs: Sigmoid certainty percentage (0 = Real, 1 = Fake)
-                    """
-                )
-            with col_spec2:
-                if metrics_data:
-                    st.markdown(
-                        f"""
-                        **Evaluation Scores:**
-                        - Validation Accuracy: `{metrics_data.get('accuracy', 0.0):.2%}`
-                        - ROC-AUC Benchmark: `{metrics_data.get('roc_auc', 0.0):.2%}`
-                        - Precision Rate: `{metrics_data.get('precision', 0.0):.2%}`
-                        """
-                    )
-                else:
-                    st.warning("Metrics file not found")
-        with tab_bg2:
-            # Future Scope Roadmap
-            st.markdown("### Development Roadmap")
-            # We call render roadmap here
-            st.markdown(
-                """
-                <div class="sidebar-metrics-grid" style="grid-template-columns: 1fr 1fr; gap:0.75rem;">
-                    <div class="dashboard-card-secondary">
-                        <span class="risk-badge risk-badge-suspicious" style="font-size:0.65rem; padding:0.1rem 0.4rem; float:right;">Planned</span>
-                        <strong>🎙️ Audio Deepfake Scanner</strong>
-                        <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:var(--muted-text);">Acoustic wave spectral analysis for cloning indicators.</p>
-                    </div>
-                    <div class="dashboard-card-secondary">
-                        <span class="risk-badge risk-badge-low" style="font-size:0.65rem; padding:0.1rem 0.4rem; float:right;">Completed</span>
-                        <strong>⚡ MediaPipe Face Cropper</strong>
-                        <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:var(--muted-text);">High-precision boundary box isolating pipeline.</p>
-                    </div>
-                    <div class="dashboard-card-secondary">
-                        <span class="risk-badge risk-badge-low" style="font-size:0.65rem; padding:0.1rem 0.4rem; float:right;">Completed</span>
-                        <strong>🔌 FastAPI Programmatic Backend</strong>
-                        <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:var(--muted-text);">Programmatic REST endpoints for automatic scans.</p>
-                    </div>
-                    <div class="dashboard-card-secondary">
-                        <span class="risk-badge risk-badge-low" style="font-size:0.65rem; padding:0.1rem 0.4rem; float:right;">Completed</span>
-                        <strong>📉 Robustness Stress-Testing</strong>
-                        <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:var(--muted-text);">Batch distortion stability graphs for security analysts.</p>
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
 else:
     file_suffix = uploaded_file.name.lower().split(".")[-1]
     is_image = file_suffix in ["jpg", "jpeg", "png", "webp"]
 
     if is_image:
         # ---------------------------------------------------------
-        # IMAGE WORKSPACE FLOW
+        # IMAGE MODE
         # ---------------------------------------------------------
         try:
             pil_image = Image.open(uploaded_file).convert("RGB")
@@ -964,268 +887,208 @@ else:
             st.error(f"Could not load image: {e}")
             st.stop()
 
-        with st.spinner("Processing image and executing model prediction..."):
+        with st.spinner("Analyzing media and generating risk signals..."):
             try:
                 fake_prob, cropped_face, face_found, det_method = predict_rgb(raw_rgb)
                 risk_lvl, recommendation = estimate_risk_category(fake_prob)
             except Exception as e:
-                st.error(f"Prediction pipeline failed: {e}")
+                st.error(f"Inference execution failed: {e}")
                 st.stop()
 
-        # Recruiter Mode (Simplified)
-        if dashboard_mode == "Recruiter (Simplified)":
+        pred_lbl = "Fake" if fake_prob >= 0.5 else "Real"
+
+        if dashboard_mode == "Recruiter Mode":
             st.markdown("---")
-            st.markdown("### 🖼️ Assessment Results")
+            st.markdown("### Assessment Results")
             
             col1, col2 = st.columns([1, 1.2])
             with col1:
-                st.markdown('<div class="dashboard-card" style="text-align: center;">', unsafe_allow_html=True)
+                st.markdown('<div class="glass-card" style="text-align: center;">', unsafe_allow_html=True)
                 st.image(
                     cropped_face, 
                     caption=f"Isolated Face ({det_method})" if face_found else "Raw Image (Face Cropping Failed)", 
                     use_container_width=True
                 )
                 if not face_found:
-                    st.caption("⚠️ No face was isolated. Pipeline ran on full frame.")
+                    st.caption("No face isolated. Inference ran on full frame.")
                 st.markdown('</div>', unsafe_allow_html=True)
 
             with col2:
-                st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
-                st.markdown("#### Threat Analysis Summary")
+                # Custom HTML Metric Cards
+                st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+                st.markdown("#### Assessment Summary")
                 
-                pred_lbl = "Fake" if fake_prob >= 0.5 else "Real"
-                badge_html = f"""
-                <div style="margin-bottom: 0.5rem;">
-                    <span style="font-weight: 600; color: var(--text-color); margin-right: 0.5rem;">Decision Verdict:</span> 
-                    {get_pred_badge_html(pred_lbl)}
-                </div>
-                <div style="margin-bottom: 1rem;">
-                    <span style="font-weight: 600; color: var(--text-color); margin-right: 0.5rem;">Risk Assessment:</span> 
-                    {get_risk_badge_html(risk_lvl)}
-                </div>
-                """
-                st.markdown(badge_html, unsafe_allow_html=True)
+                col_m1, col_m2, col_m3 = st.columns(3)
+                with col_m1:
+                    st.markdown(
+                        f"""
+                        <div class="glass-card-secondary" style="text-align: center;">
+                            <div style="font-size:0.75rem; color:#94A3B8; text-transform:uppercase; font-weight:600;">Classification</div>
+                            <div style="font-size:1.4rem; font-weight:800; margin:0.35rem 0; color:#F8FAFC;">{pred_lbl}</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+                with col_m2:
+                    st.markdown(
+                        f"""
+                        <div class="glass-card-secondary" style="text-align: center; padding: 1rem 0.5rem;">
+                            <div style="font-size:0.75rem; color:#94A3B8; text-transform:uppercase; font-weight:600; margin-bottom:0.4rem;">Risk Level</div>
+                            {get_risk_badge_html(risk_lvl)}
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+                with col_m3:
+                    st.markdown(
+                        f"""
+                        <div class="glass-card-secondary" style="text-align: center;">
+                            <div style="font-size:0.75rem; color:#94A3B8; text-transform:uppercase; font-weight:600;">Probability</div>
+                            <div style="font-size:1.4rem; font-weight:800; margin:0.35rem 0; color:#38BDF8;">{fake_prob:.2%}</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
 
-                pb_color = "var(--success-color)" if fake_prob < 0.30 else ("var(--warning-color)" if fake_prob < 0.66 else "var(--danger-color)")
-                st.markdown(f"**Synthetic Probability:** `{fake_prob:.2%}`")
+                pb_color = "#22C55E" if fake_prob < 0.30 else ("#F59E0B" if fake_prob < 0.66 else "#EF4444")
                 st.markdown(get_progress_bar_html(fake_prob * 100, pb_color), unsafe_allow_html=True)
                 st.markdown(get_recommendation_box_html(risk_lvl), unsafe_allow_html=True)
-                
-                # PDF Generation & Download
-                image_pdf_data = {
-                    "filename": uploaded_file.name,
-                    "risk": risk_lvl,
-                    "synthetic_probability": fake_prob,
-                    "action": recommendation,
-                    "components": {
-                        "face_isolation": 100.0 if face_found else 0.0,
-                        "crop_detection_method": det_method,
-                        "raw_neural_score": round(fake_prob * 100, 2)
-                    }
-                }
-                try:
-                    pdf_bytes = generate_pdf_report(image_pdf_data, "image")
-                    st.download_button(
-                        label="📥 Download PDF Scan Report",
-                        data=pdf_bytes,
-                        file_name=f"satyalens_image_report_{uploaded_file.name}.pdf",
-                        mime="application/pdf"
-                    )
-                except Exception as e:
-                    st.caption(f"PDF report skipped: {e}")
-
                 st.markdown('</div>', unsafe_allow_html=True)
-                st.warning("⚠️ **Image-only scan limits liveness proof.** A static image cannot verify physical motion.")
+                st.warning("Image-only liveness is limited. Video provides stronger liveness signals.")
 
-            # Recruiter Mode Grad-CAM Visualizer
-            st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
-            st.markdown("#### 🔍 Explainability Focus Map (Grad-CAM)")
-            st.markdown("Highlighted red areas show which pixels the AI model focused on during classification.")
-            with st.spinner("Generating Grad-CAM overlay..."):
+            # Explainability
+            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+            st.markdown("#### Explainability Map")
+            st.markdown("Highlighted areas show regions that influenced the model prediction. Grad-CAM is interpretability support, not forensic proof.")
+            with st.spinner("Analyzing explainability focus..."):
                 overlay_img = make_gradcam_overlay(raw_rgb)
             if overlay_img is not None:
-                st.image(overlay_img, caption="AI Attention Area", use_container_width=True)
+                st.image(overlay_img, caption="Grad-CAM Overlay", use_container_width=True)
             else:
-                st.caption("⚠️ Grad-CAM overlay could not be computed for this image.")
+                st.caption("Grad-CAM could not be generated, but prediction results are still available.")
             st.markdown('</div>', unsafe_allow_html=True)
+            
+            # What this means card
+            st.markdown(
+                f"""
+                <div class="glass-card">
+                    <h4 style="margin-top:0;">What This Means</h4>
+                    <p style="font-size:0.9rem; color:#CBD5E1; line-height:1.5; margin:0;">
+                        The EfficientNetB0 classification engine evaluated the isolated face and calculated a 
+                        <strong>{fake_prob:.2%}</strong> likelihood of synthetic generation. 
+                        Based on this score, the submission is categorized as <strong>{risk_lvl}</strong>. 
+                        Reviewers should follow the recommended protocol above.
+                    </p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
-        # Investigator Mode (Expert Tab-Based Workspace)
         else:
+            # Investigator Mode Tabs
             st.markdown("---")
-            tab_ov, tab_gc, tab_st, tab_bi = st.tabs([
-                "📊 Analysis Overview", 
-                "🔍 Explainability (Grad-CAM)", 
-                "📉 Robustness Stress-Testing",
-                "⚖️ Bias & Calibration"
+            tab_ov, tab_gc, tab_mn = st.tabs([
+                "Overview", 
+                "Explainability", 
+                "Model Notes"
             ])
 
             with tab_ov:
                 col1, col2 = st.columns([1, 1.2])
                 with col1:
-                    st.markdown('<div class="dashboard-card" style="text-align: center;">', unsafe_allow_html=True)
+                    st.markdown('<div class="glass-card" style="text-align: center;">', unsafe_allow_html=True)
                     st.image(cropped_face, caption=f"Cropped Face ({det_method})", use_container_width=True)
                     st.markdown('</div>', unsafe_allow_html=True)
                 with col2:
-                    st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
-                    st.markdown("#### Technical Assessment Summary")
-                    pred_lbl = "Fake" if fake_prob >= 0.5 else "Real"
-                    badge_html = f"""
-                    <div style="margin-bottom: 0.5rem;">
-                        <span style="font-weight:600; color:var(--text-color); margin-right:0.5rem;">Classification:</span> {get_pred_badge_html(pred_lbl)}
-                    </div>
-                    <div style="margin-bottom: 1rem;">
-                        <span style="font-weight:600; color:var(--text-color); margin-right:0.5rem;">Threat Risk Level:</span> {get_risk_badge_html(risk_lvl)}
-                    </div>
-                    """
-                    st.markdown(badge_html, unsafe_allow_html=True)
-                    pb_color = "var(--success-color)" if fake_prob < 0.30 else ("var(--warning-color)" if fake_prob < 0.66 else "var(--danger-color)")
-                    st.markdown(f"**Synthetic Probability:** `{fake_prob:.4%}`")
+                    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+                    st.markdown("#### Diagnostic Summary")
+                    col_m1, col_m2, col_m3 = st.columns(3)
+                    with col_m1:
+                        st.markdown(
+                            f"""
+                            <div class="glass-card-secondary" style="text-align: center;">
+                                <div style="font-size:0.75rem; color:#94A3B8; text-transform:uppercase; font-weight:600;">Verdict</div>
+                                <div style="font-size:1.4rem; font-weight:800; margin:0.35rem 0; color:#F8FAFC;">{pred_lbl}</div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+                    with col_m2:
+                        st.markdown(
+                            f"""
+                            <div class="glass-card-secondary" style="text-align: center; padding: 1rem 0.5rem;">
+                                <div style="font-size:0.75rem; color:#94A3B8; text-transform:uppercase; font-weight:600; margin-bottom:0.4rem;">Risk Level</div>
+                                {get_risk_badge_html(risk_lvl)}
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+                    with col_m3:
+                        st.markdown(
+                            f"""
+                            <div class="glass-card-secondary" style="text-align: center;">
+                                <div style="font-size:0.75rem; color:#94A3B8; text-transform:uppercase; font-weight:600;">Neural Score</div>
+                                <div style="font-size:1.4rem; font-weight:800; margin:0.35rem 0; color:#38BDF8;">{fake_prob:.4%}</div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+                    pb_color = "#22C55E" if fake_prob < 0.30 else ("#F59E0B" if fake_prob < 0.66 else "#EF4444")
                     st.markdown(get_progress_bar_html(fake_prob * 100, pb_color), unsafe_allow_html=True)
                     st.markdown(get_recommendation_box_html(risk_lvl), unsafe_allow_html=True)
-                    
-                    # PDF Report Download
-                    image_pdf_data = {
-                        "filename": uploaded_file.name,
-                        "risk": risk_lvl,
-                        "synthetic_probability": fake_prob,
-                        "action": recommendation,
-                        "components": {
-                            "face_isolation": 100.0 if face_found else 0.0,
-                            "crop_detection_method": det_method,
-                            "raw_neural_score": round(fake_prob * 100, 2)
-                        }
-                    }
-                    try:
-                        pdf_bytes = generate_pdf_report(image_pdf_data, "image")
-                        st.download_button(
-                            label="📥 Download PDF Scan Report",
-                            data=pdf_bytes,
-                            file_name=f"satyalens_image_report_{uploaded_file.name}.pdf",
-                            mime="application/pdf"
-                        )
-                    except Exception as e:
-                        st.caption(f"PDF report skipped: {e}")
                     st.markdown('</div>', unsafe_allow_html=True)
-                    st.warning("⚠️ **Image-only scan limits liveness proof.** A static image cannot verify physical motion.")
+                    st.warning("Image-only liveness is limited. Video provides stronger liveness signals.")
 
             with tab_gc:
-                st.markdown("### Neural Network Activation Mapping")
+                st.markdown("### Neural Activation Focus")
                 st.markdown(
-                    "Grad-CAM (Gradient-weighted Class Activation Mapping) calculates gradients "
-                    "with respect to the final convolutional layer of the base model to overlay "
-                    "the neural network's visual attention heatmaps."
+                    "Grad-CAM overlay highlights the final convolutional block layers to map visual "
+                    "attention indicators during predictions. Red highlights indicate high model dependency."
                 )
-                with st.spinner("Generating activation maps..."):
+                with st.spinner("Computing activation gradients..."):
                     overlay_img = make_gradcam_overlay(raw_rgb)
                 
                 if overlay_img is not None:
                     col_gc1, col_gc2 = st.columns(2)
                     with col_gc1:
-                        st.image(cv2.resize(cropped_face, (IMG_SIZE, IMG_SIZE)), caption="Cropped Base Image", use_container_width=True)
+                        st.image(cv2.resize(cropped_face, (IMG_SIZE, IMG_SIZE)), caption="Base Face Crop", use_container_width=True)
                     with col_gc2:
-                        st.image(overlay_img, caption="Grad-CAM Overlay Map", use_container_width=True)
-                    st.info("💡 **Visual Interpretation:** Red-colored focal blocks show regions that heavily biased the model towards a 'Fake' verdict. Look for high-density highlights around edge structures (jawline, ears, and glasses).")
+                        st.image(overlay_img, caption="Grad-CAM Focus Overlay", use_container_width=True)
+                    st.info("Highlights around jaw borders, eye alignments, and frame lines are common in synthetically manipulated inputs.")
                 else:
-                    st.warning("Grad-CAM generation failed.")
+                    st.warning("Grad-CAM could not be generated, but prediction results are still available.")
 
-            with tab_st:
-                st.markdown("### Robustness Stress-Testing Module")
+            with tab_mn:
+                st.markdown("### Model Specifications")
                 st.markdown(
-                    "This validator distortion suite injects Gaussian noise, blur, exposure shifts, crop shifts, and compression "
-                    "distortions into the source media. The resulting graph evaluates the variance of neural network "
-                    "confidence under hostile signal conditions."
+                    "The neural network classifies face areas using transfer learning parameters on EfficientNetB0."
                 )
-                with st.spinner("Executing batch robustness test..."):
-                    try:
-                        robustness_results = run_robustness_test(raw_rgb, model, face_detector)
-                    except Exception as e:
-                        st.error(f"Robustness test execution failed: {e}")
-                        robustness_results = None
-                
-                if robustness_results:
-                    fig, ax = plt.subplots(figsize=(6, 2.5))
-                    distortions = list(robustness_results.keys())
-                    scores = [res["score"] * 100 for res in robustness_results.values()]
-                    colors = ['#0EA5E9' if d == 'Original' else '#64748B' for d in distortions]
-
-                    bars = ax.barh(distortions, scores, color=colors, height=0.55)
-                    ax.set_xlim(0, 100)
-                    ax.set_xlabel('Synthetic Probability (%)', fontsize=8)
-                    ax.tick_params(axis='both', which='major', labelsize=8)
-                    ax.spines['top'].set_visible(False)
-                    ax.spines['right'].set_visible(False)
-                    ax.spines['left'].set_color('#334155' if st.session_state.theme == 'Dark Mode' else '#E2E8F0')
-                    ax.spines['bottom'].set_color('#334155' if st.session_state.theme == 'Dark Mode' else '#E2E8F0')
-
-                    for bar in bars:
-                        width = bar.get_width()
-                        ax.text(width + 1.5, bar.get_y() + bar.get_height()/2, f'{width:.1f}%', 
-                                va='center', ha='left', fontsize=7.5, fontweight='bold')
-
-                    plt.tight_layout()
-                    st.pyplot(fig)
-                    st.caption("Lower shifts across distortions indicate a highly robust neural classification.")
-
-            with tab_bi:
-                st.markdown("### Confidence Calibration & Demographics")
-                certainty = 2 * abs(fake_prob - 0.5) * 100
-                st.markdown(f"**Classification Certainty Index:** `{certainty:.2f}%`")
-                if certainty < 35.0:
+                st.markdown(
+                    f"""
+                    - **Model File**: `{MODEL_PATH}`
+                    - **Input size**: `224x224 RGB`
+                    - **Target Classes**: `Real = 0, Fake = 1`
+                    """
+                )
+                if metrics_data:
+                    st.markdown("#### Evaluation Benchmark Dataset")
                     st.markdown(
+                        f"""
+                        - Accuracy: `{metrics_data.get('accuracy', 0.0):.2%}`
+                        - ROC-AUC: `{metrics_data.get('roc_auc', 0.0):.2%}`
+                        - Precision: `{metrics_data.get('precision', 0.0):.2%}`
+                        - Recall: `{metrics_data.get('recall', 0.0):.2%}`
                         """
-                        <div class="action-box action-suspicious" style="margin-top: 0.5rem;">
-                            <strong>⚠️ Borderline Uncertainty Alert:</strong> The prediction lies near the decision boundary (35%-65%). 
-                            The model output is highly uncertain. Manual audit is mandatory.
-                        </div>
-                        """, 
-                        unsafe_allow_html=True
                     )
-                else:
-                    st.success(f"Model outputs are calibrated with a certainty index of {certainty:.1f}%.")
-                    
-                st.markdown("---")
-                st.markdown("#### Demographic Bias Metrics Benchmark ( Celeb-DF / DFDC )")
-                bias_table = """
-                <table class="metrics-table">
-                    <tr>
-                        <th>Demographic Slice</th>
-                        <th>Sample Share</th>
-                        <th>False Positive Rate (FPR)</th>
-                        <th>Bias Risk Warning</th>
-                    </tr>
-                    <tr>
-                        <td>👩 <strong>Female Faces</strong></td>
-                        <td>48.2%</td>
-                        <td>12.4%</td>
-                        <td>Baseline reference.</td>
-                    </tr>
-                    <tr>
-                        <td>👨 <strong>Male Faces</strong></td>
-                        <td>51.8%</td>
-                        <td>8.6%</td>
-                        <td>Slightly higher detection accuracy.</td>
-                    </tr>
-                    <tr>
-                        <td>👤 <strong>Dark Skin Tones (Fitzpatrick V-VI)</strong></td>
-                        <td>14.1%</td>
-                        <td>18.9%</td>
-                        <td><span style="color:var(--danger-color); font-weight:600;">⚠️ Higher False Positives</span> due to shadow artifacts.</td>
-                    </tr>
-                    <tr>
-                        <td>👓 <strong>Eyeglasses Reflections</strong></td>
-                        <td>18.7%</td>
-                        <td>15.2%</td>
-                        <td>Glass borders can trigger false positive synthetic lines.</td>
-                    </tr>
-                </table>
-                """
-                st.markdown(bias_table, unsafe_allow_html=True)
+                st.markdown(
+                    "Limitations: Validation benchmarks are calculated on standard test sets. "
+                    "Accuracy may degrade under low contrast, severe compression, or extreme camera angles."
+                )
 
     else:
         # ---------------------------------------------------------
-        # VIDEO WORKSPACE FLOW
+        # VIDEO MODE
         # ---------------------------------------------------------
-        # Save temp file
         temp_video = tempfile.NamedTemporaryFile(delete=False, suffix="." + file_suffix)
         try:
             temp_video.write(uploaded_file.read())
@@ -1235,10 +1098,9 @@ else:
             st.error(f"Failed to create temp video: {e}")
             st.stop()
 
-        with st.spinner("Extracting frames and aggregating neural network classifications..."):
+        with st.spinner("Analyzing media and generating risk signals..."):
             result, frames = predict_video_aggregate(temp_video_name)
 
-        # Cleanup temp file
         try:
             os.remove(temp_video_name)
         except Exception:
@@ -1249,64 +1111,61 @@ else:
             st.stop()
 
         # Recruiter Mode (Simplified)
-        if dashboard_mode == "Recruiter (Simplified)":
+        if dashboard_mode == "Recruiter Mode":
             st.markdown("---")
-            st.markdown("### 🎥 Video Threat Assessment")
+            st.markdown("### Video Threat Assessment")
             
             col_vid_1, col_vid_2 = st.columns([1, 1.2])
             with col_vid_1:
-                st.markdown('<div class="dashboard-card" style="text-align: center;">', unsafe_allow_html=True)
+                st.markdown('<div class="glass-card" style="text-align: center;">', unsafe_allow_html=True)
                 st.video(uploaded_file)
-                st.caption("Uploaded Video Playback")
+                st.caption("Video Playback")
                 st.markdown('</div>', unsafe_allow_html=True)
 
             with col_vid_2:
-                st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
+                st.markdown('<div class="glass-card">', unsafe_allow_html=True)
                 st.markdown(f"**Threat Assessment:** {get_risk_badge_html(result['risk'])}", unsafe_allow_html=True)
                 
                 st.markdown("##### Threat Scoreboard")
                 c_m1, c_m2, c_m3 = st.columns(3)
-                c_m1.metric("Overall Identity Risk", f"{result['overall_identity_risk']:.1%}")
-                c_m2.metric("Deepfake Video Risk", f"{result['deepfake_video_risk']:.1%}")
-                c_m3.metric("Liveness Score", f"{result['liveness']['liveness_score']}/100")
+                with c_m1:
+                    st.markdown(
+                        f"""
+                        <div class="glass-card-secondary" style="text-align: center;">
+                            <div style="font-size:0.75rem; color:#94A3B8; text-transform:uppercase; font-weight:600;">Overall Risk</div>
+                            <div style="font-size:1.3rem; font-weight:800; margin:0.35rem 0; color:#8B5CF6;">{result['overall_identity_risk']:.1%}</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+                with c_m2:
+                    st.markdown(
+                        f"""
+                        <div class="glass-card-secondary" style="text-align: center;">
+                            <div style="font-size:0.75rem; color:#94A3B8; text-transform:uppercase; font-weight:600;">Deepfake Risk</div>
+                            <div style="font-size:1.3rem; font-weight:800; margin:0.35rem 0; color:#38BDF8;">{result['deepfake_video_risk']:.1%}</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+                with c_m3:
+                    st.markdown(
+                        f"""
+                        <div class="glass-card-secondary" style="text-align: center;">
+                            <div style="font-size:0.75rem; color:#94A3B8; text-transform:uppercase; font-weight:600;">Liveness</div>
+                            <div style="font-size:1.3rem; font-weight:800; margin:0.35rem 0; color:#22C55E;">{result['liveness']['liveness_score']}/100</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
                 
                 st.markdown(get_recommendation_box_html(result['risk']), unsafe_allow_html=True)
-                
-                # PDF report generation
-                video_pdf_data = {
-                    "filename": uploaded_file.name,
-                    "risk": result["risk"],
-                    "synthetic_probability": result["overall_identity_risk"],
-                    "liveness_score": result["liveness"]["liveness_score"],
-                    "liveness_label": result["liveness"]["liveness_label"],
-                    "action": get_recommendation_box_html(result["risk"]),
-                    "components": result["liveness"],
-                    "video_metrics": {
-                        "frames_sampled": result["frames_used"],
-                        "faces_detected": result["faces_detected"],
-                        "mean_fake_probability": result["mean_fake_probability"],
-                        "median_fake_probability": result["median_fake_probability"],
-                        "top3_fake_probability": result["top3_fake_probability"],
-                        "high_risk_frame_ratio": result["high_risk_frame_ratio"],
-                        "deepfake_video_risk": result["deepfake_video_risk"]
-                    }
-                }
-                try:
-                    pdf_bytes = generate_pdf_report(video_pdf_data, "video")
-                    st.download_button(
-                        label="📥 Download PDF Scan Report",
-                        data=pdf_bytes,
-                        file_name=f"satyalens_video_report_{uploaded_file.name}.pdf",
-                        mime="application/pdf"
-                    )
-                except Exception as e:
-                    st.caption(f"PDF report generation skipped: {e}")
                 st.markdown('</div>', unsafe_allow_html=True)
 
-            # Sampled timeline frames grid
-            st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
-            st.markdown("#### 🖼️ Extracted Sampled Frames Timeline")
-            st.markdown("Sampled frames used for temporal aggregation predictions:")
+            # Sampled timeline gallery
+            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+            st.markdown("#### Sampled Video Timeline Frames")
+            st.markdown("extrapolated frames selected for aggregate pipeline predictions:")
             max_thumbs = min(8, len(frames))
             grid_cols_count = min(4, max_thumbs)
             rows = [frames[i:i + grid_cols_count] for i in range(0, max_thumbs, grid_cols_count)]
@@ -1317,14 +1176,15 @@ else:
                     grid_cols[c_idx].image(frame_rgb, caption=f"Frame {global_idx+1}", use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # Investigator Mode (Expert Tab-Based Video Workspace)
+        # Investigator Mode (Expert Video Workspace)
         else:
             st.markdown("---")
-            tab_v_ov, tab_v_ag, tab_v_lv, tab_v_fm = st.tabs([
-                "🎥 Playback & Overview", 
-                "📊 Frame Aggregation Insights", 
-                "⚡ Heuristic Liveness", 
-                "🖼️ Full Sampled Timeline"
+            tab_v_ov, tab_v_ag, tab_v_lv, tab_v_fm, tab_v_mn = st.tabs([
+                "Overview", 
+                "Video Analysis", 
+                "Liveness Signals", 
+                "Sampled Timeline",
+                "Model Notes"
             ])
 
             with tab_v_ov:
@@ -1332,51 +1192,46 @@ else:
                 with col_vid_1:
                     st.video(uploaded_file)
                 with col_vid_2:
-                    st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
+                    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
                     st.markdown(f"**Threat Assessment:** {get_risk_badge_html(result['risk'])}", unsafe_allow_html=True)
                     c_m1, c_m2, c_m3 = st.columns(3)
-                    c_m1.metric("Overall Identity Risk", f"{result['overall_identity_risk']:.1%}")
-                    c_m2.metric("Deepfake Video Risk", f"{result['deepfake_video_risk']:.1%}")
-                    c_m3.metric("Liveness Score", f"{result['liveness']['liveness_score']}/100")
-                    st.markdown(get_recommendation_box_html(result['risk']), unsafe_allow_html=True)
-                    
-                    # Generate PDF Report
-                    video_pdf_data = {
-                        "filename": uploaded_file.name,
-                        "risk": result["risk"],
-                        "synthetic_probability": result["overall_identity_risk"],
-                        "liveness_score": result["liveness"]["liveness_score"],
-                        "liveness_label": result["liveness"]["liveness_label"],
-                        "action": get_recommendation_box_html(result["risk"]),
-                        "components": result["liveness"],
-                        "video_metrics": {
-                            "frames_sampled": result["frames_used"],
-                            "faces_extracted": result["faces_detected"],
-                            "mean_fake_probability": result["mean_fake_probability"],
-                            "median_fake_probability": result["median_fake_probability"],
-                            "top3_fake_probability": result["top3_fake_probability"],
-                            "high_risk_frame_ratio": result["high_risk_frame_ratio"],
-                            "deepfake_video_risk": result["deepfake_video_risk"]
-                        }
-                    }
-                    try:
-                        pdf_bytes = generate_pdf_report(video_pdf_data, "video")
-                        st.download_button(
-                            label="📥 Download PDF Scan Report",
-                            data=pdf_bytes,
-                            file_name=f"satyalens_video_report_{uploaded_file.name}.pdf",
-                            mime="application/pdf"
+                    with c_m1:
+                        st.markdown(
+                            f"""
+                            <div class="glass-card-secondary" style="text-align: center;">
+                                <div style="font-size:0.75rem; color:#94A3B8; text-transform:uppercase; font-weight:600;">Overall Risk</div>
+                                <div style="font-size:1.3rem; font-weight:800; margin:0.35rem 0; color:#8B5CF6;">{result['overall_identity_risk']:.1%}</div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
                         )
-                    except Exception as e:
-                        st.caption(f"PDF report generation skipped: {e}")
+                    with c_m2:
+                        st.markdown(
+                            f"""
+                            <div class="glass-card-secondary" style="text-align: center;">
+                                <div style="font-size:0.75rem; color:#94A3B8; text-transform:uppercase; font-weight:600;">Deepfake Risk</div>
+                                <div style="font-size:1.3rem; font-weight:800; margin:0.35rem 0; color:#38BDF8;">{result['deepfake_video_risk']:.1%}</div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+                    with c_m3:
+                        st.markdown(
+                            f"""
+                            <div class="glass-card-secondary" style="text-align: center;">
+                                <div style="font-size:0.75rem; color:#94A3B8; text-transform:uppercase; font-weight:600;">Liveness</div>
+                                <div style="font-size:1.3rem; font-weight:800; margin:0.35rem 0; color:#22C55E;">{result['liveness']['liveness_score']}/100</div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+                    st.markdown(get_recommendation_box_html(result['risk']), unsafe_allow_html=True)
                     st.markdown('</div>', unsafe_allow_html=True)
 
             with tab_v_ag:
                 st.markdown("### Frame-level Aggregation Insights")
                 st.markdown(
-                    "Standard classification models evaluate single frames, creating high false rates "
-                    "in compressed videos. SatyaLens aggregates multiple temporal samples "
-                    "and weighs high-risk frames heavier to catch short video manipulations."
+                    "Video classification combines frame-level predictions into a more stable video-level deepfake risk score."
                 )
                 
                 table_html = f"""
@@ -1384,7 +1239,7 @@ else:
                     <tr>
                         <th>Metric</th>
                         <th>Value</th>
-                        <th>Security Context Description</th>
+                        <th>Analysis Description</th>
                     </tr>
                     <tr>
                         <td><strong>Frames Sampled</strong></td>
@@ -1416,7 +1271,7 @@ else:
                         <td>{result['high_risk_frame_ratio']:.2%}</td>
                         <td>Ratio of frames exceeding the 66% suspicious threat threshold.</td>
                     </tr>
-                    <tr style="background-color: var(--card-secondary);">
+                    <tr style="background-color: rgba(30, 41, 59, 0.4);">
                         <td><strong>Deepfake Video Risk</strong></td>
                         <td><strong>{result['deepfake_video_risk']:.2%}</strong></td>
                         <td>Weighted combination: 50% Mean + 25% Median + 15% Top-3 + 10% Ratio.</td>
@@ -1429,19 +1284,18 @@ else:
                 st.markdown("### Heuristic Passive Liveness Analysis")
                 st.markdown(
                     "Passive liveness uses raw frame statistics to check for screen reflections, "
-                    "moiré artifacts, and paper borders without requiring active actions (like blinking)."
+                    "moiré artifacts, and paper borders without requiring active actions."
                 )
                 
                 liveness = result["liveness"]
                 col_l1, col_l2 = st.columns([1, 1.4])
                 
                 with col_l1:
-                    st.markdown(f"**Liveness Label:** `{liveness['liveness_label']}`")
-                    st.markdown(f"**Liveness Score:** `{liveness['liveness_score']}/100`")
-                    st.markdown(f"**Spoof/Replay Risk:** `{liveness['spoof_risk']:.1f}%`")
+                    st.markdown(f"**Liveness Label**: `{liveness['liveness_label']}`")
+                    st.markdown(f"**Liveness Score**: `{liveness['liveness_score']}/100`")
+                    st.markdown(f"**Spoof/Replay Risk**: `{liveness['spoof_risk']:.1f}%`")
                     
-                    # Risk progress bar
-                    lv_color = "var(--success-color)" if liveness['liveness_score'] >= 65 else ("var(--warning-color)" if liveness['liveness_score'] >= 40 else "var(--danger-color)")
+                    lv_color = "#22C55E" if liveness['liveness_score'] >= 65 else ("#F59E0B" if liveness['liveness_score'] >= 40 else "#EF4444")
                     st.markdown("Liveness Confidence:")
                     st.markdown(get_progress_bar_html(liveness['liveness_score'], lv_color), unsafe_allow_html=True)
                     
@@ -1454,27 +1308,27 @@ else:
                             <th>Analysis Context</th>
                         </tr>
                         <tr>
-                            <td>🏃‍♂️ <strong>Motion</strong> (25%)</td>
+                            <td>Motion (25%)</td>
                             <td>{liveness['motion_score']}%</td>
                             <td>Detects pixel variance to identify static image presentations.</td>
                         </tr>
                         <tr>
-                            <td>🔍 <strong>Sharpness</strong> (25%)</td>
+                            <td>Sharpness (25%)</td>
                             <td>{liveness['sharpness_score']}%</td>
                             <td>Detects blurriness typical of print/low-res screen reviews.</td>
                         </tr>
                         <tr>
-                            <td>🦚 <strong>Texture</strong> (20%)</td>
+                            <td>Texture (20%)</td>
                             <td>{liveness['texture_score']}%</td>
                             <td>Identifies high-frequency patterns, such as digital screen moiré.</td>
                         </tr>
                         <tr>
-                            <td>☀️ <strong>Exposure</strong> (15%)</td>
+                            <td>Exposure (15%)</td>
                             <td>{liveness['exposure_score']}%</td>
                             <td>Measures face lighting balance and contrast values.</td>
                         </tr>
                         <tr>
-                            <td>🌈 <strong>Color Richness</strong> (15%)</td>
+                            <td>Color Richness (15%)</td>
                             <td>{liveness['color_score']}%</td>
                             <td>Analyzes standard color deviations to verify live skin profiles.</td>
                         </tr>
@@ -1482,7 +1336,7 @@ else:
                     """
                     st.markdown(liveness_table, unsafe_allow_html=True)
 
-                st.warning("⚠️ **Liveness Warning:** Passive liveness analysis uses computer vision heuristics. It is NOT certified biometric liveness.")
+                st.warning("Passive liveness is heuristic and should only support manual review.")
 
             with tab_v_fm:
                 st.markdown("### Sampled Video Timeline Frames")
@@ -1495,91 +1349,75 @@ else:
                         global_idx = r_idx * grid_cols_count + c_idx
                         grid_cols[c_idx].image(frame_rgb, caption=f"Frame {global_idx+1}", use_container_width=True)
 
-# ---------------------------------------------------------
-# NEURAL NETWORK EXPORTER (Investigator Mode only)
-# ---------------------------------------------------------
-if dashboard_mode == "Investigator (Expert)":
-    st.markdown("---")
-    st.markdown("### 🛠️ Neural Network Diagnostics & Exporter")
-    st.markdown(
-        "Utilities for auditing the model weights and exporting the neural network file "
-        "to compressed formats for mobile, edge, or general server engines."
-    )
-    
-    col_exp1, col_exp2 = st.columns(2)
-    
-    with col_exp1:
-        st.markdown("**Convert to TFLite (edge/mobile)**")
-        if st.button("Generate TFLite weights"):
-            with st.spinner("Converting EfficientNetB0 Keras model to optimized TFLite file..."):
-                ok, msg = export_to_tflite()
-                if ok:
-                    st.success(msg)
-                else:
-                    st.error(msg)
-                    
-    with col_exp2:
-        st.markdown("**Convert to ONNX (cross-runtime)**")
-        if st.button("Generate ONNX weights"):
-            with st.spinner("Converting model to ONNX proto format..."):
-                ok, msg = export_to_onnx()
-                if ok:
-                    st.success(msg)
-                else:
-                    st.error(msg)
+            with tab_v_mn:
+                st.markdown("### Model Specifications")
+                st.markdown(
+                    f"""
+                    - **Model File**: `{MODEL_PATH}`
+                    - **Input size**: `224x224 RGB`
+                    - **Target Classes**: `Real = 0, Fake = 1`
+                    """
+                )
+                if metrics_data:
+                    st.markdown("#### Evaluation Benchmark Dataset")
+                    st.markdown(
+                        f"""
+                        - Accuracy: `{metrics_data.get('accuracy', 0.0):.2%}`
+                        - ROC-AUC: `{metrics_data.get('roc_auc', 0.0):.2%}`
+                        - Precision: `{metrics_data.get('precision', 0.0):.2%}`
+                        - Recall: `{metrics_data.get('recall', 0.0):.2%}`
+                        """
+                    )
+                st.markdown(
+                    "Limitations: Validation benchmarks are calculated on standard test sets. "
+                    "Accuracy may degrade under low contrast, severe compression, or extreme camera angles."
+                )
 
 # ---------------------------------------------------------
-# ROADMAP & FUTURE SCOPE
+# FUTURE ROADMAP
 # ---------------------------------------------------------
 st.markdown("---")
-st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
-st.markdown("### 🗺️ Future Scope & Development Roadmap")
-st.markdown('<span class="muted-text">Planned and integrated upgrades to make SatyaLens stronger as an AI security research platform.</span>', unsafe_allow_html=True)
+st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+st.markdown("<h3 style='margin-top:0;'>Future Roadmap</h3>", unsafe_allow_html=True)
+st.markdown("<p class='muted-text'>Planned upgrades to expand SatyaLens as an AI security research platform.</p>", unsafe_allow_html=True)
 
 col_r1, col_r2 = st.columns(2)
 with col_r1:
     st.markdown(
         """
-        <div class="dashboard-card-secondary">
+        <div class="glass-card-secondary">
             <span class="risk-badge risk-badge-suspicious" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Planned</span>
-            <strong style="font-size:0.95rem;">🎙️ Audio Deepfake Scanner</strong>
-            <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:var(--muted-text);">
-                Acoustic wave analysis to scan for voice clones and speech synthesis (ElevenLabs, Bark).
+            <strong style="font-size:0.95rem; color:#F8FAFC;">Acoustic Deepfake Detection</strong>
+            <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:#94A3B8;">
+                Add voice and audio manipulation analysis.
             </p>
         </div>
-        <div class="dashboard-card-secondary">
-            <span class="risk-badge risk-badge-low" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Completed</span>
-            <strong style="font-size:0.95rem;">⚡ MediaPipe Face Cropping</strong>
-            <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:var(--muted-text);">
-                Integrated MediaPipe Face Mesh for high-precision boundary boxes and alignment fallback.
-            </p>
-        </div>
-        <div class="dashboard-card-secondary">
-            <span class="risk-badge risk-badge-low" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Completed</span>
-            <strong style="font-size:0.95rem;">📉 Robustness Stress-Test</strong>
-            <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:var(--muted-text);">
-                Stress-tests model certainty against blur, compression noise, crop shifts, and JPEG loss.
-            </p>
-        </div>
-        <div class="dashboard-card-secondary">
-            <span class="risk-badge risk-badge-low" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Completed</span>
-            <strong style="font-size:0.95rem;">📥 PDF Risk Reports</strong>
-            <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:var(--muted-text);">
-                Generates polished in-memory PDF scan reports containing diagnostic scores and charts.
-            </p>
-        </div>
-        <div class="dashboard-card-secondary">
-            <span class="risk-badge risk-badge-low" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Completed</span>
-            <strong style="font-size:0.95rem;">🐳 Multi-Port Docker Support</strong>
-            <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:var(--muted-text);">
-                Containerized compose configurations to spin up both Streamlit and FastAPI programmatically.
-            </p>
-        </div>
-        <div class="dashboard-card-secondary">
+        <div class="glass-card-secondary">
             <span class="risk-badge risk-badge-suspicious" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Planned</span>
-            <strong style="font-size:0.95rem;">📹 Live Camera Review Mode</strong>
-            <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:var(--muted-text);">
-                Real-time webcam video feed capture and frame-level deepfake inference auditing.
+            <strong style="font-size:0.95rem; color:#F8FAFC;">MediaPipe / RetinaFace Upgrade</strong>
+            <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:#94A3B8;">
+                Improve face detection accuracy beyond Haar Cascades.
+            </p>
+        </div>
+        <div class="glass-card-secondary">
+            <span class="risk-badge risk-badge-suspicious" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Planned</span>
+            <strong style="font-size:0.95rem; color:#F8FAFC;">Robustness Stress Testing</strong>
+            <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:#94A3B8;">
+                Test prediction stability under blur, crop, noise, exposure, and compression.
+            </p>
+        </div>
+        <div class="glass-card-secondary">
+            <span class="risk-badge risk-badge-suspicious" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Planned</span>
+            <strong style="font-size:0.95rem; color:#F8FAFC;">PDF Risk Reports</strong>
+            <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:#94A3B8;">
+                Generate downloadable review summaries.
+            </p>
+        </div>
+        <div class="glass-card-secondary">
+            <span class="risk-badge risk-badge-suspicious" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Planned</span>
+            <strong style="font-size:0.95rem; color:#F8FAFC;">FastAPI Backend</strong>
+            <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:#94A3B8;">
+                Add API-based inference for external integrations.
             </p>
         </div>
         """,
@@ -1588,39 +1426,39 @@ with col_r1:
 with col_r2:
     st.markdown(
         """
-        <div class="dashboard-card-secondary">
-            <span class="risk-badge risk-badge-low" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Completed</span>
-            <strong style="font-size:0.95rem;">🔌 FastAPI Programmatic API</strong>
-            <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:var(--muted-text);">
-                REST API gateway with Swagger docs for automated pipeline integration.
-            </p>
-        </div>
-        <div class="dashboard-card-secondary">
-            <span class="risk-badge risk-badge-low" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Completed</span>
-            <strong style="font-size:0.95rem;">♻️ ONNX & TFLite Exporters</strong>
-            <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:var(--muted-text);">
-                Allows exporting the EfficientNet Keras model to ONNX or TFLite flatbuffers.
-            </p>
-        </div>
-        <div class="dashboard-card-secondary">
+        <div class="glass-card-secondary">
             <span class="risk-badge risk-badge-suspicious" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Planned</span>
-            <strong style="font-size:0.95rem;">⚖️ Demographic Bias Testing</strong>
-            <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:var(--muted-text);">
-                Automated bias evaluation tools across gender, contrast, skin tone (Fitzpatrick scale).
+            <strong style="font-size:0.95rem; color:#F8FAFC;">Docker Deployment</strong>
+            <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:#94A3B8;">
+                Containerize the app for reproducible deployment.
             </p>
         </div>
-        <div class="dashboard-card-secondary">
-            <span class="risk-badge risk-badge-low" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Completed</span>
-            <strong style="font-size:0.95rem;">🎯 Confidence Calibration</strong>
-            <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:var(--muted-text);">
-                Visualizes boundary calibration certainty (35%-65% range alerts).
-            </p>
-        </div>
-        <div class="dashboard-card-secondary">
+        <div class="glass-card-secondary">
             <span class="risk-badge risk-badge-suspicious" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Planned</span>
-            <strong style="font-size:0.95rem;">📊 Model Monitoring Dashboard</strong>
-            <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:var(--muted-text);">
-                Track and graph historical detection logs, feedback corrections, and drift.
+            <strong style="font-size:0.95rem; color:#F8FAFC;">ONNX / TFLite Export</strong>
+            <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:#94A3B8;">
+                Support lightweight model deployment formats.
+            </p>
+        </div>
+        <div class="glass-card-secondary">
+            <span class="risk-badge risk-badge-suspicious" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Planned</span>
+            <strong style="font-size:0.95rem; color:#F8FAFC;">Bias and Fairness Testing</strong>
+            <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:#94A3B8;">
+                Evaluate performance differences across demographics and data conditions.
+            </p>
+        </div>
+        <div class="glass-card-secondary">
+            <span class="risk-badge risk-badge-suspicious" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Planned</span>
+            <strong style="font-size:0.95rem; color:#F8FAFC;">Confidence Calibration</strong>
+            <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:#94A3B8;">
+                Improve probability reliability.
+            </p>
+        </div>
+        <div class="glass-card-secondary">
+            <span class="risk-badge risk-badge-suspicious" style="font-size:0.65rem; padding: 0.15rem 0.45rem; color: #8B5CF6 !important; border-color: rgba(139, 92, 246, 0.25); background-color: rgba(139, 92, 246, 0.1); float:right;">Later</span>
+            <strong style="font-size:0.95rem; color:#F8FAFC;">Live Camera Review Mode</strong>
+            <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:#94A3B8;">
+                Add optional camera-based review workflow.
             </p>
         </div>
         """,
@@ -1633,18 +1471,21 @@ st.markdown('</div>', unsafe_allow_html=True)
 # ---------------------------------------------------------
 st.markdown(
     """
-    <div class="dashboard-card" style="text-align: center; margin-top: 3rem; padding: 1.5rem;">
-        <strong style="font-size: 1.15rem; color: var(--text-color);">🔍 SatyaLens</strong>
-        <p style="margin: 0.5rem 0 0.25rem 0; font-size: 0.85rem; color: var(--muted-text);">
+    <div class="glass-card" style="text-align: center; margin-top: 3rem; padding: 1.5rem; border-color: rgba(139, 92, 246, 0.25);">
+        <strong style="font-size: 1.15rem; color: #F8FAFC;">SatyaLens</strong>
+        <p style="margin: 0.5rem 0 0.25rem 0; font-size: 0.85rem; color: #CBD5E1;">
             Built with passion by <strong>Arnav Raj (Cybroarnv)</strong>
         </p>
-        <div style="margin: 0.5rem 0; font-size: 0.85rem;">
-            <a href="https://github.com/yocybroarnv" target="_blank" style="color: var(--accent-color); text-decoration: none; margin-right: 1.25rem;">💻 GitHub</a>
-            <a href="https://www.linkedin.com/in/arnav-raj-professional" target="_blank" style="color: var(--accent-color); text-decoration: none; margin-right: 1.25rem;">👔 LinkedIn</a>
-            <span style="color: var(--muted-text);">⚖️ MIT Licensed</span>
+        <p style="margin: 0.25rem auto; font-size: 0.825rem; color: #94A3B8; max-width: 650px;">
+            AI Security Research Prototype for Deepfake Risk Analysis, Identity-Risk Estimation, Passive Liveness Signals, and Manual Review Support.
+        </p>
+        <div style="margin: 0.75rem 0; font-size: 0.85rem;">
+            <a href="https://github.com/yocybroarnv" target="_blank" style="color: #38BDF8; text-decoration: none; margin-right: 1.5rem;">GitHub</a>
+            <a href="https://www.linkedin.com/in/arnav-raj-professional" target="_blank" style="color: #38BDF8; text-decoration: none; margin-right: 1.5rem;">LinkedIn</a>
+            <span style="color: #94A3B8;">MIT Licensed</span>
         </div>
-        <p style="margin: 0.75rem auto 0 auto; font-size: 0.75rem; color: var(--muted-text); max-width: 620px; line-height: 1.45;">
-            Research prototype only — not for automated KYC, hiring, legal, surveillance or biometric verification decisions.
+        <p style="margin: 0.5rem auto 0 auto; font-size: 0.75rem; color: #94A3B8; max-width: 600px; line-height: 1.45;">
+            Research prototype only — not for automated KYC, hiring, legal, surveillance, or biometric verification decisions.
         </p>
     </div>
     """,
