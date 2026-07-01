@@ -5,6 +5,7 @@ import tempfile
 import sys
 import hashlib
 import datetime
+import urllib.request
 import numpy as np
 import streamlit as st
 from PIL import Image
@@ -374,6 +375,21 @@ def inject_cyberpunk_css():
     st.markdown(css, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
+# MOCK UPLOAD OBJECT FOR DYNAMIC DEMO SAMPLES
+# ---------------------------------------------------------
+class MockUploadedFile:
+    def __init__(self, name, size, data):
+        self.name = name
+        self.size = size
+        self.data = data
+    def read(self):
+        return self.data
+    def seek(self, offset):
+        pass
+    def getvalue(self):
+        return self.data
+
+# ---------------------------------------------------------
 # HELPER ACTIONS / VERDICTS
 # ---------------------------------------------------------
 def estimate_risk_category(score):
@@ -431,6 +447,19 @@ def format_file_size(num_bytes):
     else:
         return f"{num_bytes / (1024 * 1024):.2f} MB"
 
+@st.cache_data
+def load_demo_image_url(url):
+    try:
+        # Standard urllib fetching
+        req = urllib.request.Request(
+            url, 
+            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        )
+        with urllib.request.urlopen(req, timeout=5) as response:
+            return response.read()
+    except Exception:
+        return None
+
 # ---------------------------------------------------------
 # CORE MODEL LOADING WITH CACHE & WARM-UP
 # ---------------------------------------------------------
@@ -439,7 +468,6 @@ def load_deepfake_model():
     if not os.path.exists(MODEL_PATH):
         raise FileNotFoundError(f"Model weights file {MODEL_PATH} is missing.")
     m = keras.models.load_model(MODEL_PATH)
-    # Model warm-up run to speed up subsequent predictions
     m.predict(np.zeros((1, 224, 224, 3), dtype=np.float32), verbose=0)
     return m
 
@@ -942,7 +970,6 @@ def read_video_frames(video_path, max_frames=16):
 def predict_video_aggregate(path, mode):
     n_frames = 8 if mode == "Recruiter Mode" else 16
     
-    # Status updates for optimization monitoring
     status_text = st.empty()
     
     status_text.text("Reading video...")
@@ -1094,14 +1121,45 @@ def make_gradcam_overlay(rgb, alpha=0.45):
 # ---------------------------------------------------------
 st.markdown('<div class="glass-card">', unsafe_allow_html=True)
 st.markdown("<h3 style='margin-top: 0;'>Media Analysis Intake</h3>", unsafe_allow_html=True)
-st.markdown("<span class='muted-text'>Upload a face image or short video for AI-assisted risk analysis.</span>", unsafe_allow_html=True)
+st.markdown("<span class='muted-text'>Upload a face image or short video, or select a demo sample to scan.</span>", unsafe_allow_html=True)
 
-uploaded_file = st.file_uploader(
-    "Media File Upload",
-    type=["jpg", "jpeg", "png", "webp", "mp4", "avi", "mov", "mkv", "webm"],
-    label_visibility="collapsed"
+demo_choice = st.selectbox(
+    "Source Mode:",
+    ["Upload My Own Media", "Demo Real Face (Unsplash)", "Demo Synthetic Pattern (Generated)"],
+    index=0
 )
-st.markdown("<span style='font-size:0.8rem; color:#94A3B8;'>Supported formats: JPG, JPEG, PNG, WEBP, MP4, AVI, MOV, MKV, WEBM</span>", unsafe_allow_html=True)
+
+uploaded_file = None
+if demo_choice == "Upload My Own Media":
+    uploaded_file = st.file_uploader(
+        "Media File Upload",
+        type=["jpg", "jpeg", "png", "webp", "mp4", "avi", "mov", "mkv", "webm"],
+        label_visibility="collapsed"
+    )
+    st.markdown("<span style='font-size:0.8rem; color:#94A3B8;'>Supported formats: JPG, JPEG, PNG, WEBP, MP4, AVI, MOV, MKV, WEBM</span>", unsafe_allow_html=True)
+elif demo_choice == "Demo Real Face (Unsplash)":
+    unsplash_url = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?fit=crop&w=224&h=224&q=80"
+    with st.spinner("Downloading Unsplash demo image..."):
+        img_data = load_demo_image_url(unsplash_url)
+    if img_data:
+        uploaded_file = MockUploadedFile("unsplash_real_face.jpg", len(img_data), img_data)
+    else:
+        st.error("Could not fetch Unsplash demo image. Please upload a file manually.")
+else:
+    # Demo Synthetic Pattern (Generated)
+    img = np.zeros((224, 224, 3), dtype=np.uint8)
+    cv2.circle(img, (112, 112), 80, (180, 180, 180), -1)
+    cv2.circle(img, (85, 95), 12, (20, 20, 20), -1)
+    cv2.circle(img, (139, 95), 12, (20, 20, 20), -1)
+    for i in range(0, 224, 16):
+        cv2.line(img, (i, 0), (i, 224), (100, 220, 100), 1)
+        cv2.line(img, (0, i), (224, i), (100, 220, 100), 1)
+    
+    success, encoded = cv2.imencode(".png", cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+    if success:
+        img_data = encoded.tobytes()
+        uploaded_file = MockUploadedFile("synthetic_grid_pattern.png", len(img_data), img_data)
+
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------------------------------------------------------
@@ -1180,7 +1238,6 @@ else:
             with st.spinner("Analyzing video frames and liveness signals..."):
                 try:
                     prediction_result, frames = predict_video_aggregate(temp_video_name, dashboard_mode)
-                    # Add frames for display reference
                     prediction_result["frames"] = frames
                 except Exception as e:
                     st.error(f"Video analysis failed: {e}")
@@ -1201,6 +1258,11 @@ else:
     # Render Media Metadata Section immediately after upload
     render_metadata_panel(metadata_result, dashboard_mode)
 
+    # Setup variables for results & logs
+    risk_lvl = ""
+    fake_prob = 0.0
+    result_dict = {}
+
     # ---------------------------------------------------------
     # RESULTS RENDERING SECTION
     # ---------------------------------------------------------
@@ -1216,6 +1278,8 @@ else:
         det_method = prediction_result["detection_method"]
         raw_rgb = prediction_result["raw_rgb"]
         
+        result_dict = {"liveness": {"liveness_score": "N/A"}}
+
         if dashboard_mode == "Recruiter Mode":
             st.markdown("---")
             st.markdown("### Assessment Results")
@@ -1418,6 +1482,10 @@ else:
         # VIDEO MODE RESULTS
         result = prediction_result
         frames = prediction_result.get("frames", [])
+        
+        result_dict = result
+        risk_lvl = result["risk"]
+        fake_prob = result["deepfake_video_risk"]
         
         # Recruiter Mode (Simplified Video Results)
         if dashboard_mode == "Recruiter Mode":
@@ -1682,6 +1750,48 @@ else:
                     "Accuracy may degrade under low contrast, severe compression, or extreme camera angles."
                 )
 
+    # ---------------------------------------------------------
+    # INTERACTIVE REVIEW LOG NOTES & AUDIT CERTIFICATE
+    # ---------------------------------------------------------
+    st.markdown("---")
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+    st.markdown("<h4 style='margin-top:0;'>Reviewer Audit Logs & Decisioning</h4>", unsafe_allow_html=True)
+    st.markdown("Record your manual review decisions and log comments below.")
+    
+    review_verdict = st.radio(
+        "Verification Verdict:", 
+        ["Unverified", "Approved (Real)", "Flagged (Suspicious)", "Rejected (Fake)"], 
+        horizontal=True
+    )
+    reviewer_notes = st.text_area(
+        "Observations & Comments:", 
+        placeholder="Type comments, suspicious artifacts, or verification confirmation details here...",
+        key="reviewer_log_notes"
+    )
+    
+    if st.button("Generate Security Audit Certificate"):
+        cert_text = f"""==================================================
+              SATYALENS AUDIT CERTIFICATE
+==================================================
+Analysis Date:  {metadata_result.get('timestamp')}
+Target File:    {metadata_result.get('name')}
+SHA-256 Hash:   {metadata_result.get('hash')}
+Upload Type:    {metadata_result.get('type')}
+--------------------------------------------------
+MODEL ASSESSMENT RESULTS:
+Neural Score:   {fake_prob:.4%}
+Liveness:       {result_dict.get('liveness', {}).get('liveness_score', 'N/A')}/100
+Risk Category:  {risk_lvl}
+--------------------------------------------------
+REVIEWER DECISION:
+Status:         {review_verdict}
+Notes:          {reviewer_notes if reviewer_notes else 'None'}
+==================================================
+        """
+        st.code(cert_text, language="text")
+        
+    st.markdown('</div>', unsafe_allow_html=True)
+
 # ---------------------------------------------------------
 # FUTURE ROADMAP
 # ---------------------------------------------------------
@@ -1776,7 +1886,7 @@ with col_r2:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# THEME-AWARE DEVELOPER FOOTER
+# DEVELOPER FOOTER
 # ---------------------------------------------------------
 st.markdown(
     """
