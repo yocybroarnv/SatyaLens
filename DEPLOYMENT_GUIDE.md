@@ -1,6 +1,6 @@
 # Hugging Face Spaces Deployment Guide
 
-Deploying **SatyaLens v7** to Hugging Face Spaces enables live demonstration. The application runs on the Streamlit SDK space environment.
+Deploying **SatyaLens** to Hugging Face Spaces enables live demonstration. The application runs on the Streamlit SDK space environment.
 
 ## Required Files for Deployment
 Push the following files to your Hugging Face Space repository:
@@ -30,7 +30,7 @@ Push the following files to your Hugging Face Space repository:
    # Add your files
    git add .gitattributes
    git add satyalens_v6_efficientnetb0.keras app.py requirements.txt satyalens_v6_metrics.json label_map.json
-   git commit -m "feat: deploy SatyaLens v7 Streamlit app with weights"
+   git commit -m "feat: deploy SatyaLens Streamlit app with weights"
    ```
 
 3. **Configure Git Remote & Push**:
@@ -44,5 +44,5 @@ Push the following files to your Hugging Face Space repository:
 ## Resume & Portfolio Description
 Use this short summary when adding the project to your resume, portfolio website, or LinkedIn:
 
-> **SatyaLens v7: Deepfake Fraud Detection & Identity-Risk Estimator**
+> **SatyaLens: Deepfake Fraud Detection & Identity-Risk Estimator**
 > Developed a research-focused AI security computer vision application in Streamlit using TensorFlow (EfficientNetB0) and OpenCV. The platform isolates faces, detects synthetic manipulations (deepfakes) with a 75.7% accuracy model, computes video risk scores through multi-frame timeline aggregation, and estimates heuristic passive liveness components (motion, sharpness, texture moiré) to detect screen replay and print spoofing attacks. Employs Grad-CAM gradient overlays to provide explainable model focus maps for human reviewer support.

@@ -6,3 +6,8 @@ opencv-python-headless
 scikit-learn
 matplotlib
 pandas
+fastapi
+uvicorn
+mediapipe
+fpdf2
+scipy

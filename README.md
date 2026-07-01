@@ -1,48 +1,75 @@
-# SatyaLens v7: Deepfake Fraud Detection & Identity-Risk Estimator
+# SatyaLens: Advanced AI Security Hub
 
-SatyaLens v7 is an AI security-focused computer vision prototype designed to scan face media for synthetic manipulation, calculate passive liveness/spoof-risk scores, and provide Grad-CAM explainability maps. It acts as a decision-support tool for recruiters, AI security reviewers, and KYC researchers.
-
----
-
-## 🚀 Key Upgrades & Features
-
-- **Polished AI Security Dashboard**: A complete UI overhaul with soft cards, dynamic risk badges, and interactive use-case indicators.
-- **Aggregated Video Risk Scoring**: Samples up to 16 frames uniformly and computes video-level threat indicators using a multi-factor formula.
-- **Heuristic Passive Liveness**: Estimates spoof risks (printed photos, screen replays) across five components: motion, sharpness, texture (moiré grids), exposure, and color richness.
-- **Grad-CAM Attention Mapping**: Visually displays heatmaps showing the facial regions the model focused on during prediction.
-- **Status Indicator & Metrics Panel**: The sidebar checks model state and dynamically parses benchmark evaluations from `satyalens_v6_metrics.json`.
-- **Face isolation cropping**: OpenCV Haar Cascades crop the primary face area, falling back automatically to full frames on failure.
+SatyaLens is an AI security-focused computer vision and signal processing suite designed to scan face media and audio signals for synthetic manipulation (deepfakes), estimate passive liveness/spoof risk, and provide explainable model diagnostics. It functions as an audit workspace for security reviewers, KYC research teams, and cybersecurity students.
 
 ---
 
-## 📊 Benchmark Model Metrics
-The model `satyalens_v6_efficientnetb0.keras` performs with the following validation metrics:
-*   **Accuracy**: 75.67%
-*   **Precision**: 79.39%
-*   **Recall**: 69.33%
-*   **ROC-AUC**: 84.51%
+## 🚀 Advanced Capabilities
+
+1. **Dual Dashboard Modes**:
+   - **Recruiter Mode (Simplified)**: Renders high-level classification verdicts, clean risk badges, and recommended reviewer procedures.
+   - **Investigator Mode (Expert)**: Exposes neural network certainty indices, confidence calibration warnings, robustness Stress-Testing charts, demographic bias matrices, and model export formats.
+2. **Modular Face Detector**: Uses **MediaPipe Face Detection** for high-precision boundary boxes, falling back automatically to **OpenCV Haar Cascades** on system environments without MediaPipe.
+3. **Acoustic Deepfake Scanner**: Supports uploading audio tracks (`.wav`, `.mp3`, `.m4a`, `.ogg`) and extracts spectral flatness, pitch jitter stability, high-frequency codec artifacts, and noise profiles.
+4. **FastAPI Backend Gateway**: Integrates a complete FastAPI server alongside the Streamlit app to enable programmatic REST API calls for automated scans.
+5. **Downloadable PDF Scan Reports**: Generates professional, in-memory PDF risk reports containing metadata, primary assessments, component tables, and ethical disclaimers.
+6. **Distortion Robustness stress test**: Distorts input images (blur, noise, exposure, crop, and JPEG compression) to graph model output stability under varying signal conditions.
+7. **ONNX & TFLite Model Exporter**: Converts the core Keras model directly into TFLite or ONNX formats inside the expert workspace.
+8. **Multi-Service Docker Containerization**: Configures the entire environment with a Dockerfile and docker-compose script for quick, multi-port deployments.
 
 ---
 
-## ⚙️ Setup & Local Execution
+## 📂 Modular File Architecture
+- [app.py](app.py): Streamlit frontend dashboard (handles recruiter and expert modes, uploads, and charts).
+- [api.py](api.py): FastAPI backend routes for image, video, and audio predictions.
+- `utils/`:
+  - [face_detection.py](utils/face_detection.py): MediaPipe face cropping with Haar Cascade fallback.
+  - [audio_analysis.py](utils/audio_analysis.py): Acoustic spectral and FFT analysis.
+  - [robustness.py](utils/robustness.py): Stress-testing distortion injectors.
+  - [pdf_report.py](utils/pdf_report.py): Report PDF builder using FPDF2.
+  - [model_export.py](utils/model_export.py): ONNX/TFLite converter functions.
 
-### 1. Requirements Installation
-Ensure Python 3.8+ is installed, then install requirements:
+---
+
+## ⚙️ Running Locally
+
+### 1. Requirements Setup
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Model Download
-The app requires the model weights `satyalens_v6_efficientnetb0.keras` in the root folder. If it is missing, refer to the setup steps in [MODEL_DOWNLOAD.md](MODEL_DOWNLOAD.md) to download or pull via Git LFS.
-
-### 3. Run the Streamlit Application
+### 2. Streamlit Dashboard
+Launch the frontend dashboard:
 ```bash
 streamlit run app.py
 ```
 
+### 3. FastAPI Gateway
+Launch the backend server:
+```bash
+uvicorn api:app --reload
+```
+Access the Swagger interactive documentation at `http://127.0.0.1:8000/docs` to test endpoints.
+
+---
+
+## 🐳 Docker Deployment
+To build and run both Streamlit (frontend) and FastAPI (backend) in isolated containers:
+```bash
+# Build and start services
+docker-compose up --build
+
+# Run in background
+docker-compose up -d
+
+# Stop services
+docker-compose down
+```
+- Streamlit will be exposed on: `http://localhost:8501`
+- FastAPI will be exposed on: `http://localhost:8000`
+
 ---
 
 ## ⚖️ Limitations & Ethical Disclaimer
-1. **Research Prototype**: SatyaLens v7 is a research-grade demo and should not be used as a production KYC gates, automatic hiring rejector, or legal validation tool.
-2. **Heuristic Liveness**: The passive liveness analyzer utilizes heuristics (not certified biometric validation). High-quality digital displays or print bypasses may evade detection.
-3. **No Automatic Decisions**: The application provides risk signals to support manual review workflows, not automated approvals or rejections.
+1. **Decision Support Only**: SatyaLens is a research prototype. It estimates threat classes and provides risk markers to aid manual verification. It should not be used as an automated gating check or for background rejections.
+2. **Heuristic Liveness**: The passive liveness and acoustic checkers use visual/signal heuristics. High-quality print, screen-replay, or voice clones can evade these checks. Escalation to human reviewers is mandatory for suspicious results.
