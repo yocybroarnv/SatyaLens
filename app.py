@@ -2,11 +2,81 @@ import os
 import cv2
 import json
 import tempfile
+import sys
 import numpy as np
 import streamlit as st
+
+# Check for required packages first
+required_libs_installed = True
+missing_libs = []
+
+try:
+    import tensorflow as tf
+    from tensorflow import keras
+except ImportError:
+    required_libs_installed = False
+    missing_libs.append("TensorFlow")
+
+try:
+    import scipy
+except ImportError:
+    required_libs_installed = False
+    missing_libs.append("SciPy")
+
+if not required_libs_installed:
+    st.set_page_config(
+        page_title="SatyaLens: Compatibility Error",
+        page_icon="⚠️",
+        layout="centered"
+    )
+    
+    st.markdown("""
+    <style>
+        .stApp { background-color: #F8FAFC; }
+        .error-card {
+            background-color: #FFFFFF;
+            border: 1px solid #E5E7EB;
+            border-left: 5px solid #DC2626;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            margin-top: 2rem;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        .error-title {
+            color: #DC2626;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('<div class="error-card">', unsafe_allow_html=True)
+    st.markdown('<div class="error-title">⚠️ Streamlit Cloud Compatibility Error</div>', unsafe_allow_html=True)
+    st.markdown(
+        f"The application successfully compiled its dependencies, but the required machine learning packages "
+        f"**({', '.join(missing_libs)})** could not be loaded in this Python environment."
+    )
+    st.markdown(f"**Current Python Runtime version:** `Python {sys.version.split()[0]}`")
+    st.markdown(
+        """
+        ### Why is this happening?
+        By default, Streamlit Community Cloud deployed your application on **Python 3.14**. 
+        TensorFlow does not support Python 3.14 on Linux yet, meaning it cannot be installed.
+        
+        ### 🛠️ How to Resolve This (2-Step Fix):
+        1. **Go to your Streamlit Cloud Dashboard** at [share.streamlit.io](https://share.streamlit.io).
+        2. Click the **three dots ("...")** next to your app, choose **Settings**, and under **Advanced settings**, set the **Python version** to **3.12** or **3.11**.
+        
+        Once you click **Save**, the application environment will automatically rebuild with the selected Python version, install TensorFlow and SciPy, and launch successfully!
+        """
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.stop()
+
+# If packages are present, we can safely import everything else
 import matplotlib.pyplot as plt
-import tensorflow as tf
-from tensorflow import keras
 from PIL import Image
 
 # Import modular utilities
