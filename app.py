@@ -3,8 +3,12 @@ import cv2
 import json
 import tempfile
 import sys
+import hashlib
+import datetime
 import numpy as np
 import streamlit as st
+from PIL import Image
+from PIL.ExifTags import TAGS
 
 # 1. CHECK CORE DEPENDENCIES (For Streamlit Cloud Compatibility)
 required_libs_installed = True
@@ -75,7 +79,6 @@ if not required_libs_installed:
 
 # If packages are present, we can safely import everything else
 import matplotlib.pyplot as plt
-from PIL import Image
 
 # Import modular utilities
 from utils.face_detection import FaceDetector
@@ -201,19 +204,19 @@ def inject_cyberpunk_css():
             border: 1px solid transparent;
         }
         
-        .risk-badge-low {
+        .risk-badge-success {
             background-color: rgba(34, 197, 94, 0.1);
             color: #22C55E !important;
             border-color: rgba(34, 197, 94, 0.25);
         }
         
-        .risk-badge-suspicious {
+        .risk-badge-warning {
             background-color: rgba(245, 158, 11, 0.1);
             color: #F59E0B !important;
             border-color: rgba(245, 158, 11, 0.25);
         }
         
-        .risk-badge-high {
+        .risk-badge-danger {
             background-color: rgba(239, 68, 68, 0.1);
             color: #EF4444 !important;
             border-color: rgba(239, 68, 68, 0.25);
@@ -268,17 +271,17 @@ def inject_cyberpunk_css():
             margin-bottom: 1rem;
             border: 1px solid;
         }
-        .action-low {
+        .action-success {
             background-color: rgba(34, 197, 94, 0.05);
             color: #22C55E !important;
             border-color: rgba(34, 197, 94, 0.25);
         }
-        .action-suspicious {
+        .action-warning {
             background-color: rgba(245, 158, 11, 0.05);
             color: #F59E0B !important;
             border-color: rgba(245, 158, 11, 0.25);
         }
-        .action-high {
+        .action-danger {
             background-color: rgba(239, 68, 68, 0.05);
             color: #EF4444 !important;
             border-color: rgba(239, 68, 68, 0.25);
@@ -371,13 +374,74 @@ def inject_cyberpunk_css():
     st.markdown(css, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# CORE MODEL LOADING & METRICS
+# HELPER ACTIONS / VERDICTS
+# ---------------------------------------------------------
+def estimate_risk_category(score):
+    try:
+        score = float(score)
+    except Exception:
+        score = 0.0
+
+    if score < 0.30:
+        return {
+            "label": "Low Risk",
+            "action": "Continue normal review, but do not treat this result as final proof.",
+            "color": "success"
+        }
+    elif score < 0.67:
+        return {
+            "label": "Suspicious",
+            "action": "Manual review and additional verification are recommended.",
+            "color": "warning"
+        }
+    else:
+        return {
+            "label": "High Risk",
+            "action": "Strong manual verification is recommended before taking any action.",
+            "color": "danger"
+        }
+
+def get_risk_badge_html(risk_lvl, color):
+    return f'<span class="risk-badge risk-badge-{color}">{risk_lvl}</span>'
+
+def get_progress_bar_html(percentage, color_hex):
+    return f"""
+    <div class="progress-container">
+        <div class="progress-bar-bg">
+            <div class="progress-bar-fill" style="width: {percentage}%; background-color: {color_hex};"></div>
+        </div>
+    </div>
+    """
+
+def get_recommendation_box_html(risk_lvl, action, color):
+    return f"""
+    <div class="action-box action-{color}">
+        <strong>Recommended Action ({risk_lvl}):</strong> {action}
+    </div>
+    """
+
+def get_file_hash(file_bytes):
+    return hashlib.sha256(file_bytes).hexdigest()
+
+def format_file_size(num_bytes):
+    if num_bytes < 1024:
+        return f"{num_bytes} B"
+    elif num_bytes < 1024 * 1024:
+        return f"{num_bytes / 1024:.2f} KB"
+    else:
+        return f"{num_bytes / (1024 * 1024):.2f} MB"
+
+# ---------------------------------------------------------
+# CORE MODEL LOADING WITH CACHE & WARM-UP
 # ---------------------------------------------------------
 @st.cache_resource
 def load_deepfake_model():
     if not os.path.exists(MODEL_PATH):
         raise FileNotFoundError(f"Model weights file {MODEL_PATH} is missing.")
-    return keras.models.load_model(MODEL_PATH)
+    m = keras.models.load_model(MODEL_PATH)
+    # Model warm-up run to speed up subsequent predictions
+    m.predict(np.zeros((1, 224, 224, 3), dtype=np.float32), verbose=0)
+    return m
 
 model_exists = os.path.exists(MODEL_PATH)
 
@@ -395,7 +459,7 @@ if os.path.exists(METRICS_PATH):
 def render_sidebar():
     st.sidebar.markdown('<h2 style="margin-top: 0; margin-bottom: 0.1rem;">SatyaLens</h2>', unsafe_allow_html=True)
     st.sidebar.markdown('<span style="font-size:0.8rem; opacity:0.7; color:#38BDF8 !important; text-transform:uppercase; letter-spacing:0.05em;">AI Security Command Dashboard</span>', unsafe_allow_html=True)
-    st.sidebar.markdown('<div style="margin-top:0.35rem;"><span class="risk-badge risk-badge-suspicious" style="padding: 0.1rem 0.4rem; font-size:0.65rem;">Research Prototype</span></div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div style="margin-top:0.35rem;"><span class="risk-badge risk-badge-warning" style="padding: 0.1rem 0.4rem; font-size:0.65rem; border-color:rgba(245,158,11,0.25);">Research Prototype</span></div>', unsafe_allow_html=True)
     st.sidebar.markdown("---")
     
     # Workspace Mode Switcher
@@ -412,10 +476,10 @@ def render_sidebar():
     # System Status Tracker
     st.sidebar.markdown("### System Status")
     if model_exists:
-        st.sidebar.markdown('<span class="risk-badge risk-badge-low" style="padding: 0.15rem 0.5rem; font-size:0.75rem;">Model Loaded</span>', unsafe_allow_html=True)
+        st.sidebar.markdown('<span class="risk-badge risk-badge-success" style="padding: 0.15rem 0.5rem; font-size:0.75rem;">Model Loaded</span>', unsafe_allow_html=True)
         st.sidebar.caption(f"Filename: `{MODEL_PATH}`")
     else:
-        st.sidebar.markdown('<span class="risk-badge risk-badge-high" style="padding: 0.15rem 0.5rem; font-size:0.75rem;">Model Missing</span>', unsafe_allow_html=True)
+        st.sidebar.markdown('<span class="risk-badge risk-badge-danger" style="padding: 0.15rem 0.5rem; font-size:0.75rem;">Model Missing</span>', unsafe_allow_html=True)
         st.sidebar.markdown(
             "Model file not found. Expected: satyalens_v6_efficientnetb0.keras. "
             "Place it in the same folder as app.py.", 
@@ -532,9 +596,9 @@ def render_hero():
     # Disclaimer
     st.markdown(
         """
-        <div class="glass-card" style="border-left: 4px solid var(--warning-color); background-color: rgba(245, 158, 11, 0.05); padding: 1rem 1.25rem;">
-            <strong style="color: var(--warning-color); font-size: 0.9rem;">Research Prototype Disclaimer:</strong>
-            <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; line-height: 1.4; color: var(--muted-text);">
+        <div class="glass-card" style="border-left: 4px solid #F59E0B; background-color: rgba(245, 158, 11, 0.05); padding: 1rem 1.25rem;">
+            <strong style="color: #F59E0B; font-size: 0.9rem;">Research Prototype Disclaimer:</strong>
+            <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; line-height: 1.4; color: #CBD5E1;">
                 This is a research prototype for manual review support. It is not a certified biometric, legal, KYC, hiring, or surveillance system.
             </p>
         </div>
@@ -605,7 +669,7 @@ def render_capability_cards():
 
 render_capability_cards()
 
-# Load Keras Model
+# Load Neural Network Model
 model = None
 if model_exists:
     try:
@@ -616,8 +680,8 @@ if model_exists:
 else:
     st.markdown(
         """
-        <div class="glass-card" style="border-left: 4px solid var(--danger-color); background-color: rgba(220, 38, 38, 0.05);">
-            <strong style="color: var(--danger-color);">Core Model Weights Missing</strong>
+        <div class="glass-card" style="border-left: 4px solid #EF4444; background-color: rgba(239, 68, 68, 0.05);">
+            <strong style="color: #EF4444;">Core Model Weights Missing</strong>
             <p style="margin: 0.5rem 0; font-size: 0.9rem;">
                 The core deep learning model weights file <code>satyalens_v6_efficientnetb0.keras</code> was not found.
             </p>
@@ -629,6 +693,158 @@ else:
         unsafe_allow_html=True
     )
     st.stop()
+
+# Initialize session state cache for results
+if "cached_hash" not in st.session_state:
+    st.session_state.cached_hash = None
+    st.session_state.cached_prediction = None
+    st.session_state.cached_metadata = None
+    st.session_state.cached_gradcam = None
+
+# ---------------------------------------------------------
+# METADATA EXTRACTION HELPERS
+# ---------------------------------------------------------
+def get_image_metadata(uploaded_file, file_bytes):
+    meta = {
+        "name": uploaded_file.name,
+        "size": format_file_size(len(file_bytes)),
+        "extension": uploaded_file.name.split(".")[-1].upper(),
+        "hash": get_file_hash(file_bytes)[:16],
+        "type": "Image",
+        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    try:
+        img = Image.open(uploaded_file)
+        meta.update({
+            "width": img.width,
+            "height": img.height,
+            "aspect_ratio": f"{img.width / img.height:.2f}",
+            "format": img.format,
+            "mode": img.mode,
+            "channels": len(img.getbands()) if hasattr(img, "getbands") else 3,
+            "exif_present": "No",
+            "exif_count": 0,
+            "camera": "Unknown",
+            "date_taken": "Unknown",
+            "gps_present": "No"
+        })
+        
+        exif_data = img.getexif() if hasattr(img, "getexif") else None
+        if exif_data:
+            meta["exif_present"] = "Yes"
+            meta["exif_count"] = len(exif_data)
+            
+            camera_make = ""
+            camera_model = ""
+            for tag_id, val in exif_data.items():
+                tag_name = TAGS.get(tag_id, tag_id)
+                if tag_name == "Make":
+                    camera_make = str(val)
+                elif tag_name == "Model":
+                    camera_model = str(val)
+                elif tag_name in ["DateTime", "DateTimeOriginal"]:
+                    meta["date_taken"] = str(val)
+            
+            if camera_make or camera_model:
+                meta["camera"] = f"{camera_make} {camera_model}".strip()
+            
+            # Check for GPSInfo tag (34853)
+            if 34853 in exif_data:
+                meta["gps_present"] = "Yes"
+    except Exception:
+        pass
+    return meta
+
+def get_video_metadata(temp_video_path, file_bytes, uploaded_file):
+    meta = {
+        "name": uploaded_file.name,
+        "size": format_file_size(len(file_bytes)),
+        "extension": uploaded_file.name.split(".")[-1].upper(),
+        "hash": get_file_hash(file_bytes)[:16],
+        "type": "Video",
+        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "width": 0,
+        "height": 0,
+        "fps": 0.0,
+        "frame_count": 0,
+        "duration": 0.0,
+        "duration_formatted": "00:00",
+        "codec": "Unknown",
+        "readable": "No",
+        "frame_extraction": "No"
+    }
+    try:
+        cap = cv2.VideoCapture(temp_video_path)
+        if cap.isOpened():
+            meta["readable"] = "Yes"
+            meta["width"] = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            meta["height"] = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            meta["fps"] = float(cap.get(cv2.CAP_PROP_FPS))
+            meta["frame_count"] = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            
+            if meta["fps"] > 0:
+                meta["duration"] = round(meta["frame_count"] / meta["fps"], 2)
+                mins = int(meta["duration"] // 60)
+                secs = int(meta["duration"] % 60)
+                meta["duration_formatted"] = f"{mins:02d}:{secs:02d}"
+            
+            fourcc = int(cap.get(cv2.CAP_PROP_FOURCC))
+            codec_chars = [chr((fourcc >> 8 * i) & 0xFF) for i in range(4)]
+            meta["codec"] = "".join(codec_chars).strip()
+            meta["frame_extraction"] = "Yes" if meta["frame_count"] > 0 else "No"
+            
+            cap.release()
+    except Exception:
+        pass
+    return meta
+
+def render_metadata_panel(meta, mode):
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+    st.markdown("<h4 style='margin-top: 0;'>Media Metadata & Audit Snapshot</h4>", unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown(f"**File Name**: `{meta.get('name')}`")
+        st.markdown(f"**Size**: `{meta.get('size')}`")
+        st.markdown(f"**Extension**: `{meta.get('extension')}`")
+        st.markdown(f"**SHA-256 Hash**: `{meta.get('hash')}`")
+    with col2:
+        st.markdown(f"**Upload Category**: `{meta.get('type')}`")
+        st.markdown(f"**Analysis Timestamp**: `{meta.get('timestamp')}`")
+        st.markdown(f"**Processing Mode**: `{mode}`")
+        
+    if meta.get("type") == "Image":
+        st.markdown("<hr style='border-color: rgba(56, 189, 248, 0.1);' />", unsafe_allow_html=True)
+        col_im1, col_im2 = st.columns(2)
+        with col_im1:
+            st.markdown(f"**Dimensions**: `{meta.get('width')} x {meta.get('height')}`")
+            st.markdown(f"**Aspect Ratio**: `{meta.get('aspect_ratio')}`")
+            st.markdown(f"**Format**: `{meta.get('format')}`")
+            st.markdown(f"**Color Mode**: `{meta.get('mode')}` (Channels: `{meta.get('channels')}`)")
+        with col_im2:
+            st.markdown(f"**EXIF Present**: `{meta.get('exif_present')}` (Tags: `{meta.get('exif_count')}`)")
+            st.markdown(f"**Camera Info**: `{meta.get('camera')}`")
+            st.markdown(f"**Date Taken**: `{meta.get('date_taken')}`")
+            st.markdown(f"**GPS Metadata present**: `{meta.get('gps_present')}`")
+    elif meta.get("type") == "Video":
+        st.markdown("<hr style='border-color: rgba(56, 189, 248, 0.1);' />", unsafe_allow_html=True)
+        col_v1, col_v2 = st.columns(2)
+        with col_v1:
+            st.markdown(f"**Resolution**: `{meta.get('width')} x {meta.get('height')}`")
+            st.markdown(f"**FPS**: `{meta.get('fps'):.2f}`")
+            st.markdown(f"**Total Frames**: `{meta.get('frame_count')}`")
+        with col_v2:
+            st.markdown(f"**Duration**: `{meta.get('duration')}s` (`{meta.get('duration_formatted')}`)")
+            st.markdown(f"**Codec**: `{meta.get('codec')}`")
+            st.markdown(f"**Readable**: `{meta.get('readable')}`")
+            st.markdown(f"**Sampled Frames**: `{meta.get('sampled_frames_count', 0)}`")
+
+    if mode == "Investigator Mode":
+        st.markdown(" ")
+        with st.expander("Raw Metadata Debug"):
+            st.json(meta)
+            
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------------------------------------------------------
 # IMAGE INFERENCE HELPER
@@ -649,24 +865,30 @@ def calculate_passive_liveness_heuristics(frames):
         return {"liveness_score": 0.0, "spoof_risk": 100.0, "liveness_label": "Unknown"}
 
     grays = [cv2.cvtColor(f, cv2.COLOR_RGB2GRAY) for f in frames]
+    
+    # Sharpness calculation
     sharpness = float(np.clip(np.mean([cv2.Laplacian(g, cv2.CV_64F).var() for g in grays]) / 180.0, 0, 1))
 
+    # Texture details
     texture = float(np.clip(
         np.mean([np.mean(cv2.Canny(g, 80, 160) > 0) for g in grays]) / 0.12,
         0,
         1
     ))
 
+    # Lighting exposure
     brightness = float(np.mean([np.mean(g) for g in grays]))
     exposure = float(1 - np.clip(abs(brightness - 127.5) / 127.5, 0, 1))
 
-    if len(grays) > 1:
-        small = [cv2.resize(g, (96, 96)) for g in grays]
-        diffs = [np.mean(cv2.absdiff(a, b)) for a, b in zip(small[:-1], small[1:])]
+    # Speed-optimized motion: downscale grays to 96x96 before frame differences
+    small_grays = [cv2.resize(g, (96, 96)) for g in grays]
+    if len(small_grays) > 1:
+        diffs = [np.mean(cv2.absdiff(a, b)) for a, b in zip(small_grays[:-1], small_grays[1:])]
         motion = float(np.clip(np.mean(diffs) / 18.0, 0, 1))
     else:
         motion = 0.0
 
+    # Color richness
     color = float(np.clip(np.mean([np.mean(np.std(f, axis=(0, 1))) for f in frames]) / 55.0, 0, 1))
 
     liveness_score = (
@@ -717,20 +939,44 @@ def read_video_frames(video_path, max_frames=16):
     cap.release()
     return frames
 
-def predict_video_aggregate(path):
-    frames = read_video_frames(path, 16)
-    if len(frames) == 0:
+def predict_video_aggregate(path, mode):
+    n_frames = 8 if mode == "Recruiter Mode" else 16
+    
+    # Status updates for optimization monitoring
+    status_text = st.empty()
+    
+    status_text.text("Reading video...")
+    cap = cv2.VideoCapture(path)
+    if not cap.isOpened():
+        status_text.empty()
         return None, []
-
-    probs = []
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    cap.release()
+    
+    status_text.text("Sampling frames...")
+    frames = read_video_frames(path, n_frames)
+    if len(frames) == 0:
+        status_text.empty()
+        return None, []
+    
+    status_text.text("Running batch inference...")
+    batch_faces = []
     detected_faces_count = 0
+    
     for f in frames:
-        prob, _, detected, _ = predict_rgb(f)
-        probs.append(prob)
+        cropped, detected, method = face_detector.detect_and_crop(f)
+        resized = cv2.resize(cropped, (IMG_SIZE, IMG_SIZE))
+        arr = resized.astype("float32")
+        batch_faces.append(arr)
         if detected:
             detected_faces_count += 1
-
-    probs = np.array(probs)
+            
+    # Run batch inference in a single call for speed
+    batch_arr = np.array(batch_faces)
+    probs_batch = model.predict(batch_arr, verbose=0)
+    probs = probs_batch[:, 0]
+    
+    status_text.text("Calculating liveness signals...")
     mean_prob = float(np.mean(probs))
     median_prob = float(np.median(probs))
     top3_prob = float(np.mean(np.sort(probs)[-min(3, len(probs)):]))
@@ -746,7 +992,9 @@ def predict_video_aggregate(path):
     liveness = calculate_passive_liveness_heuristics(frames)
     overall_risk = 0.70 * deepfake_risk + 0.30 * (liveness["spoof_risk"] / 100.0)
 
-    risk_lbl, action = estimate_risk_category(overall_risk)
+    risk_data = estimate_risk_category(overall_risk)
+    
+    status_text.empty()
 
     return {
         "frames_used": len(frames),
@@ -757,13 +1005,14 @@ def predict_video_aggregate(path):
         "high_risk_frame_ratio": round(high_risk_ratio, 4),
         "deepfake_video_risk": round(deepfake_risk, 4),
         "overall_identity_risk": round(overall_risk, 4),
-        "risk": risk_lbl,
-        "action": action,
+        "risk": risk_data["label"],
+        "action": risk_data["action"],
+        "color": risk_data["color"],
         "liveness": liveness
     }, frames
 
 # ---------------------------------------------------------
-# GRAD-CAM EXPLAINABILITY heatmaps
+# GRAD-CAM EXPLAINABILITY HEATMAPS
 # ---------------------------------------------------------
 def get_nested_base_model(full_model):
     for layer in full_model.layers:
@@ -873,30 +1122,100 @@ if not uploaded_file:
         unsafe_allow_html=True
     )
 else:
+    file_bytes = uploaded_file.read()
+    uploaded_file.seek(0) # Reset stream pointer for PIL/CV2
+    
     file_suffix = uploaded_file.name.lower().split(".")[-1]
     is_image = file_suffix in ["jpg", "jpeg", "png", "webp"]
-
-    if is_image:
-        # ---------------------------------------------------------
-        # IMAGE MODE
-        # ---------------------------------------------------------
-        try:
-            pil_image = Image.open(uploaded_file).convert("RGB")
-            raw_rgb = np.array(pil_image)
-        except Exception as e:
-            st.error(f"Could not load image: {e}")
-            st.stop()
-
-        with st.spinner("Analyzing media and generating risk signals..."):
+    
+    # Calculate file SHA-256 hash to check against session cache
+    file_hash = get_file_hash(file_bytes)
+    
+    # Load or Compute Metadata & Prediction Results
+    if st.session_state.cached_hash == file_hash:
+        metadata_result = st.session_state.cached_metadata
+        prediction_result = st.session_state.cached_prediction
+    else:
+        # Clear previous session state entries
+        st.session_state.cached_hash = file_hash
+        st.session_state.cached_gradcam = None
+        
+        # Extract Metadata
+        if is_image:
+            metadata_result = get_image_metadata(uploaded_file, file_bytes)
+            
+            # Predict Image
             try:
+                pil_image = Image.open(uploaded_file).convert("RGB")
+                raw_rgb = np.array(pil_image)
                 fake_prob, cropped_face, face_found, det_method = predict_rgb(raw_rgb)
-                risk_lvl, recommendation = estimate_risk_category(fake_prob)
+                risk_data = estimate_risk_category(fake_prob)
+                prediction_result = {
+                    "fake_probability": fake_prob,
+                    "cropped_face": cropped_face,
+                    "face_found": face_found,
+                    "detection_method": det_method,
+                    "verdict": "Fake" if fake_prob >= 0.5 else "Real",
+                    "risk": risk_data["label"],
+                    "action": risk_data["action"],
+                    "color": risk_data["color"],
+                    "raw_rgb": raw_rgb
+                }
             except Exception as e:
-                st.error(f"Inference execution failed: {e}")
+                st.error(f"Image analysis failed: {e}")
                 st.stop()
+        else:
+            # Video File Flow
+            temp_video = tempfile.NamedTemporaryFile(delete=False, suffix="." + file_suffix)
+            try:
+                temp_video.write(file_bytes)
+                temp_video_name = temp_video.name
+                temp_video.close()
+            except Exception as e:
+                st.error(f"Failed to create temp video: {e}")
+                st.stop()
+                
+            metadata_result = get_video_metadata(temp_video_name, file_bytes, uploaded_file)
+            
+            with st.spinner("Analyzing video frames and liveness signals..."):
+                try:
+                    prediction_result, frames = predict_video_aggregate(temp_video_name, dashboard_mode)
+                    # Add frames for display reference
+                    prediction_result["frames"] = frames
+                except Exception as e:
+                    st.error(f"Video analysis failed: {e}")
+                    st.stop()
+                finally:
+                    try:
+                        os.remove(temp_video_name)
+                    except Exception:
+                        pass
+                        
+            # Update metadata with correct sampled frames count
+            metadata_result["sampled_frames_count"] = prediction_result.get("frames_used", 0)
+            
+        # Store results in cache
+        st.session_state.cached_metadata = metadata_result
+        st.session_state.cached_prediction = prediction_result
 
-        pred_lbl = "Fake" if fake_prob >= 0.5 else "Real"
+    # Render Media Metadata Section immediately after upload
+    render_metadata_panel(metadata_result, dashboard_mode)
 
+    # ---------------------------------------------------------
+    # RESULTS RENDERING SECTION
+    # ---------------------------------------------------------
+    if is_image:
+        # IMAGE MODE RESULTS
+        pred_lbl = prediction_result["verdict"]
+        risk_lvl = prediction_result["risk"]
+        rec_action = prediction_result["action"]
+        risk_color = prediction_result["color"]
+        fake_prob = prediction_result["fake_probability"]
+        cropped_face = prediction_result["cropped_face"]
+        face_found = prediction_result["face_found"]
+        det_method = prediction_result["detection_method"]
+        raw_rgb = prediction_result["raw_rgb"]
+        
         if dashboard_mode == "Recruiter Mode":
             st.markdown("---")
             st.markdown("### Assessment Results")
@@ -934,7 +1253,7 @@ else:
                         f"""
                         <div class="glass-card-secondary" style="text-align: center; padding: 1rem 0.5rem;">
                             <div style="font-size:0.75rem; color:#94A3B8; text-transform:uppercase; font-weight:600; margin-bottom:0.4rem;">Risk Level</div>
-                            {get_risk_badge_html(risk_lvl)}
+                            {get_risk_badge_html(risk_lvl, risk_color)}
                         </div>
                         """,
                         unsafe_allow_html=True
@@ -950,22 +1269,28 @@ else:
                         unsafe_allow_html=True
                     )
 
-                pb_color = "#22C55E" if fake_prob < 0.30 else ("#F59E0B" if fake_prob < 0.66 else "#EF4444")
+                pb_color = "#22C55E" if risk_color == "success" else ("#F59E0B" if risk_color == "warning" else "#EF4444")
                 st.markdown(get_progress_bar_html(fake_prob * 100, pb_color), unsafe_allow_html=True)
-                st.markdown(get_recommendation_box_html(risk_lvl), unsafe_allow_html=True)
+                st.markdown(get_recommendation_box_html(risk_lvl, rec_action, risk_color), unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
                 st.warning("Image-only liveness is limited. Video provides stronger liveness signals.")
 
-            # Explainability
+            # Explainability (Only on demand via click to improve speed)
             st.markdown('<div class="glass-card">', unsafe_allow_html=True)
             st.markdown("#### Explainability Map")
             st.markdown("Highlighted areas show regions that influenced the model prediction. Grad-CAM is interpretability support, not forensic proof.")
-            with st.spinner("Analyzing explainability focus..."):
-                overlay_img = make_gradcam_overlay(raw_rgb)
-            if overlay_img is not None:
-                st.image(overlay_img, caption="Grad-CAM Overlay", use_container_width=True)
+            
+            if st.session_state.cached_gradcam is not None:
+                st.image(st.session_state.cached_gradcam, caption="Grad-CAM Overlay", use_container_width=True)
             else:
-                st.caption("Grad-CAM could not be generated, but prediction results are still available.")
+                if st.button("Generate Grad-CAM Explanation"):
+                    with st.spinner("Analyzing explainability focus..."):
+                        overlay_img = make_gradcam_overlay(raw_rgb)
+                        if overlay_img is not None:
+                            st.session_state.cached_gradcam = overlay_img
+                            st.rerun()
+                        else:
+                            st.caption("Grad-CAM could not be generated, but prediction results are still available.")
             st.markdown('</div>', unsafe_allow_html=True)
             
             # What this means card
@@ -1018,7 +1343,7 @@ else:
                             f"""
                             <div class="glass-card-secondary" style="text-align: center; padding: 1rem 0.5rem;">
                                 <div style="font-size:0.75rem; color:#94A3B8; text-transform:uppercase; font-weight:600; margin-bottom:0.4rem;">Risk Level</div>
-                                {get_risk_badge_html(risk_lvl)}
+                                {get_risk_badge_html(risk_lvl, risk_color)}
                             </div>
                             """,
                             unsafe_allow_html=True
@@ -1033,9 +1358,9 @@ else:
                             """,
                             unsafe_allow_html=True
                         )
-                    pb_color = "#22C55E" if fake_prob < 0.30 else ("#F59E0B" if fake_prob < 0.66 else "#EF4444")
+                    pb_color = "#22C55E" if risk_color == "success" else ("#F59E0B" if risk_color == "warning" else "#EF4444")
                     st.markdown(get_progress_bar_html(fake_prob * 100, pb_color), unsafe_allow_html=True)
-                    st.markdown(get_recommendation_box_html(risk_lvl), unsafe_allow_html=True)
+                    st.markdown(get_recommendation_box_html(risk_lvl, rec_action, risk_color), unsafe_allow_html=True)
                     st.markdown('</div>', unsafe_allow_html=True)
                     st.warning("Image-only liveness is limited. Video provides stronger liveness signals.")
 
@@ -1045,18 +1370,23 @@ else:
                     "Grad-CAM overlay highlights the final convolutional block layers to map visual "
                     "attention indicators during predictions. Red highlights indicate high model dependency."
                 )
-                with st.spinner("Computing activation gradients..."):
-                    overlay_img = make_gradcam_overlay(raw_rgb)
                 
-                if overlay_img is not None:
+                if st.session_state.cached_gradcam is not None:
                     col_gc1, col_gc2 = st.columns(2)
                     with col_gc1:
                         st.image(cv2.resize(cropped_face, (IMG_SIZE, IMG_SIZE)), caption="Base Face Crop", use_container_width=True)
                     with col_gc2:
-                        st.image(overlay_img, caption="Grad-CAM Focus Overlay", use_container_width=True)
+                        st.image(st.session_state.cached_gradcam, caption="Grad-CAM Focus Overlay", use_container_width=True)
                     st.info("Highlights around jaw borders, eye alignments, and frame lines are common in synthetically manipulated inputs.")
                 else:
-                    st.warning("Grad-CAM could not be generated, but prediction results are still available.")
+                    if st.button("Generate Grad-CAM Explanation", key="gc_investigator"):
+                        with st.spinner("Computing activation gradients..."):
+                            overlay_img = make_gradcam_overlay(raw_rgb)
+                            if overlay_img is not None:
+                                st.session_state.cached_gradcam = overlay_img
+                                st.rerun()
+                            else:
+                                st.warning("Grad-CAM could not be generated, but prediction results are still available.")
 
             with tab_mn:
                 st.markdown("### Model Specifications")
@@ -1084,33 +1414,12 @@ else:
                     "Limitations: Validation benchmarks are calculated on standard test sets. "
                     "Accuracy may degrade under low contrast, severe compression, or extreme camera angles."
                 )
-
     else:
-        # ---------------------------------------------------------
-        # VIDEO MODE
-        # ---------------------------------------------------------
-        temp_video = tempfile.NamedTemporaryFile(delete=False, suffix="." + file_suffix)
-        try:
-            temp_video.write(uploaded_file.read())
-            temp_video_name = temp_video.name
-            temp_video.close()
-        except Exception as e:
-            st.error(f"Failed to create temp video: {e}")
-            st.stop()
-
-        with st.spinner("Analyzing media and generating risk signals..."):
-            result, frames = predict_video_aggregate(temp_video_name)
-
-        try:
-            os.remove(temp_video_name)
-        except Exception:
-            pass
-
-        if result is None or len(frames) == 0:
-            st.error("Could not read video frames. Verify the video file is not corrupted.")
-            st.stop()
-
-        # Recruiter Mode (Simplified)
+        # VIDEO MODE RESULTS
+        result = prediction_result
+        frames = prediction_result.get("frames", [])
+        
+        # Recruiter Mode (Simplified Video Results)
         if dashboard_mode == "Recruiter Mode":
             st.markdown("---")
             st.markdown("### Video Threat Assessment")
@@ -1124,7 +1433,7 @@ else:
 
             with col_vid_2:
                 st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-                st.markdown(f"**Threat Assessment:** {get_risk_badge_html(result['risk'])}", unsafe_allow_html=True)
+                st.markdown(f"**Threat Assessment:** {get_risk_badge_html(result['risk'], result['color'])}", unsafe_allow_html=True)
                 
                 st.markdown("##### Threat Scoreboard")
                 c_m1, c_m2, c_m3 = st.columns(3)
@@ -1159,14 +1468,14 @@ else:
                         unsafe_allow_html=True
                     )
                 
-                st.markdown(get_recommendation_box_html(result['risk']), unsafe_allow_html=True)
+                st.markdown(get_recommendation_box_html(result['risk'], result['action'], result['color']), unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
-            # Sampled timeline gallery
+            # Sampled timeline gallery (Recruiter Mode: 4 frames)
             st.markdown('<div class="glass-card">', unsafe_allow_html=True)
             st.markdown("#### Sampled Video Timeline Frames")
             st.markdown("extrapolated frames selected for aggregate pipeline predictions:")
-            max_thumbs = min(8, len(frames))
+            max_thumbs = min(4, len(frames))
             grid_cols_count = min(4, max_thumbs)
             rows = [frames[i:i + grid_cols_count] for i in range(0, max_thumbs, grid_cols_count)]
             for r_idx, row in enumerate(rows):
@@ -1176,7 +1485,7 @@ else:
                     grid_cols[c_idx].image(frame_rgb, caption=f"Frame {global_idx+1}", use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # Investigator Mode (Expert Video Workspace)
+        # Investigator Mode (Expert Video Results)
         else:
             st.markdown("---")
             tab_v_ov, tab_v_ag, tab_v_lv, tab_v_fm, tab_v_mn = st.tabs([
@@ -1193,7 +1502,7 @@ else:
                     st.video(uploaded_file)
                 with col_vid_2:
                     st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-                    st.markdown(f"**Threat Assessment:** {get_risk_badge_html(result['risk'])}", unsafe_allow_html=True)
+                    st.markdown(f"**Threat Assessment:** {get_risk_badge_html(result['risk'], result['color'])}", unsafe_allow_html=True)
                     c_m1, c_m2, c_m3 = st.columns(3)
                     with c_m1:
                         st.markdown(
@@ -1225,7 +1534,7 @@ else:
                             """,
                             unsafe_allow_html=True
                         )
-                    st.markdown(get_recommendation_box_html(result['risk']), unsafe_allow_html=True)
+                    st.markdown(get_recommendation_box_html(result['risk'], result['action'], result['color']), unsafe_allow_html=True)
                     st.markdown('</div>', unsafe_allow_html=True)
 
             with tab_v_ag:
@@ -1340,7 +1649,7 @@ else:
 
             with tab_v_fm:
                 st.markdown("### Sampled Video Timeline Frames")
-                max_thumbs = min(16, len(frames))
+                max_thumbs = min(8, len(frames))
                 grid_cols_count = min(4, max_thumbs)
                 rows = [frames[i:i + grid_cols_count] for i in range(0, max_thumbs, grid_cols_count)]
                 for r_idx, row in enumerate(rows):
@@ -1386,35 +1695,35 @@ with col_r1:
     st.markdown(
         """
         <div class="glass-card-secondary">
-            <span class="risk-badge risk-badge-suspicious" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Planned</span>
+            <span class="risk-badge risk-badge-warning" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right; border-color:rgba(245,158,11,0.25);">Planned</span>
             <strong style="font-size:0.95rem; color:#F8FAFC;">Acoustic Deepfake Detection</strong>
             <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:#94A3B8;">
                 Add voice and audio manipulation analysis.
             </p>
         </div>
         <div class="glass-card-secondary">
-            <span class="risk-badge risk-badge-suspicious" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Planned</span>
+            <span class="risk-badge risk-badge-warning" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right; border-color:rgba(245,158,11,0.25);">Planned</span>
             <strong style="font-size:0.95rem; color:#F8FAFC;">MediaPipe / RetinaFace Upgrade</strong>
             <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:#94A3B8;">
                 Improve face detection accuracy beyond Haar Cascades.
             </p>
         </div>
         <div class="glass-card-secondary">
-            <span class="risk-badge risk-badge-suspicious" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Planned</span>
+            <span class="risk-badge risk-badge-warning" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right; border-color:rgba(245,158,11,0.25);">Planned</span>
             <strong style="font-size:0.95rem; color:#F8FAFC;">Robustness Stress Testing</strong>
             <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:#94A3B8;">
                 Test prediction stability under blur, crop, noise, exposure, and compression.
             </p>
         </div>
         <div class="glass-card-secondary">
-            <span class="risk-badge risk-badge-suspicious" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Planned</span>
+            <span class="risk-badge risk-badge-warning" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right; border-color:rgba(245,158,11,0.25);">Planned</span>
             <strong style="font-size:0.95rem; color:#F8FAFC;">PDF Risk Reports</strong>
             <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:#94A3B8;">
                 Generate downloadable review summaries.
             </p>
         </div>
         <div class="glass-card-secondary">
-            <span class="risk-badge risk-badge-suspicious" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Planned</span>
+            <span class="risk-badge risk-badge-warning" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right; border-color:rgba(245,158,11,0.25);">Planned</span>
             <strong style="font-size:0.95rem; color:#F8FAFC;">FastAPI Backend</strong>
             <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:#94A3B8;">
                 Add API-based inference for external integrations.
@@ -1427,35 +1736,35 @@ with col_r2:
     st.markdown(
         """
         <div class="glass-card-secondary">
-            <span class="risk-badge risk-badge-suspicious" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Planned</span>
+            <span class="risk-badge risk-badge-warning" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right; border-color:rgba(245,158,11,0.25);">Planned</span>
             <strong style="font-size:0.95rem; color:#F8FAFC;">Docker Deployment</strong>
             <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:#94A3B8;">
                 Containerize the app for reproducible deployment.
             </p>
         </div>
         <div class="glass-card-secondary">
-            <span class="risk-badge risk-badge-suspicious" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Planned</span>
+            <span class="risk-badge risk-badge-warning" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right; border-color:rgba(245,158,11,0.25);">Planned</span>
             <strong style="font-size:0.95rem; color:#F8FAFC;">ONNX / TFLite Export</strong>
             <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:#94A3B8;">
                 Support lightweight model deployment formats.
             </p>
         </div>
         <div class="glass-card-secondary">
-            <span class="risk-badge risk-badge-suspicious" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Planned</span>
+            <span class="risk-badge risk-badge-warning" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right; border-color:rgba(245,158,11,0.25);">Planned</span>
             <strong style="font-size:0.95rem; color:#F8FAFC;">Bias and Fairness Testing</strong>
             <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:#94A3B8;">
                 Evaluate performance differences across demographics and data conditions.
             </p>
         </div>
         <div class="glass-card-secondary">
-            <span class="risk-badge risk-badge-suspicious" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right;">Planned</span>
+            <span class="risk-badge risk-badge-warning" style="font-size:0.65rem; padding:0.15rem 0.45rem; float:right; border-color:rgba(245,158,11,0.25);">Planned</span>
             <strong style="font-size:0.95rem; color:#F8FAFC;">Confidence Calibration</strong>
             <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:#94A3B8;">
                 Improve probability reliability.
             </p>
         </div>
         <div class="glass-card-secondary">
-            <span class="risk-badge risk-badge-suspicious" style="font-size:0.65rem; padding: 0.15rem 0.45rem; color: #8B5CF6 !important; border-color: rgba(139, 92, 246, 0.25); background-color: rgba(139, 92, 246, 0.1); float:right;">Later</span>
+            <span class="risk-badge risk-badge-warning" style="font-size:0.65rem; padding: 0.15rem 0.45rem; color: #8B5CF6 !important; border-color: rgba(139, 92, 246, 0.25); background-color: rgba(139, 92, 246, 0.1); float:right;">Later</span>
             <strong style="font-size:0.95rem; color:#F8FAFC;">Live Camera Review Mode</strong>
             <p style="font-size:0.8rem; margin:0.35rem 0 0 0; color:#94A3B8;">
                 Add optional camera-based review workflow.
