@@ -1,8 +1,35 @@
-# Hugging Face Spaces Deployment Guide
+# Deployment Guide
 
-Deploying **SatyaLens** to Hugging Face Spaces enables live demonstration. The application runs on the Streamlit SDK space environment.
+This guide details how to deploy **SatyaLens** to both **Hugging Face Spaces** and **Streamlit Community Cloud**.
 
-## Required Files for Deployment
+---
+
+## 🌐 Streamlit Community Cloud Deployment (Recommended for Quick Demos)
+
+Streamlit Community Cloud is a free hosting platform for Streamlit applications.
+
+> [!IMPORTANT]  
+> **Python Version Constraint**: You must configure the application environment to use **Python 3.11** or **Python 3.12**. Do not use Python 3.13 or Python 3.14, as TensorFlow and MediaPipe do not currently have pre-compiled wheels for those versions on Linux, which will cause dependency installation failures.
+
+### Steps to Deploy and Configure:
+1. Log in to [share.streamlit.io](https://share.streamlit.io) and click **New App**.
+2. Select your GitHub repository (`yocybroarnv/SatyaLens`), branch (`main`), and set the main file path to `app.py`.
+3. Before deploying, click **Advanced settings** (or access it from your App Settings in the dashboard).
+4. Locate the **Python version** dropdown and select **3.11** or **3.12**.
+5. Click **Save** and deploy the app.
+6. If your app is already deployed and failing with dependency errors:
+   - Go to your Streamlit Cloud Dashboard.
+   - Click the three dots next to your app, and select **Settings**.
+   - Under **Advanced settings**, change the Python version to **3.11** or **3.12**.
+   - Save and reboot the application.
+
+---
+
+## 🤗 Hugging Face Spaces Deployment (Streamlit SDK)
+
+Deploying to Hugging Face Spaces enables live hosting and integration.
+
+### Required Files for Deployment
 Push the following files to your Hugging Face Space repository:
 - `app.py` (The updated web application code)
 - `requirements.txt` (Python dependencies)
@@ -12,7 +39,7 @@ Push the following files to your Hugging Face Space repository:
 - `model_card.md` (Ethical considerations & benchmarks)
 - `README.md` (Project overview)
 
-## Step-by-Step Deployment
+### Step-by-Step Deployment
 
 1. **Create Space on Hugging Face**:
    - Go to [Hugging Face Spaces](https://huggingface.co/spaces) and click **Create new Space**.
@@ -40,6 +67,8 @@ Push the following files to your Hugging Face Space repository:
      git push -u hf main --force
      ```
    - Hugging Face will automatically read `requirements.txt`, install dependencies, cache the model weights, and spin up the Streamlit interface.
+
+---
 
 ## Resume & Portfolio Description
 Use this short summary when adding the project to your resume, portfolio website, or LinkedIn:
