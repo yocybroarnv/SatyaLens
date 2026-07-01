@@ -399,11 +399,11 @@ class MockUploadedFile:
         self.name = name
         self.size = size
         self.data = data
-    def read(self):
+    def read(self, *args, **kwargs):
         return self.data
-    def seek(self, offset):
+    def seek(self, *args, **kwargs):
         pass
-    def getvalue(self):
+    def getvalue(self, *args, **kwargs):
         return self.data
 
 # ---------------------------------------------------------
