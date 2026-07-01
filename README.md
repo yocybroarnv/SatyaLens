@@ -285,85 +285,6 @@ SatyaLens/
 └── LICENSE                             # MIT License
 ```
 
----
-
-## Local Setup
-
-Clone the repository:
-
-```bash
-git clone https://github.com/yocybroarnv/SatyaLens.git
-cd SatyaLens
-```
-
-Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-Add the model file to the root folder:
-
-```text
-satyalens_v6_efficientnetb0.keras
-```
-
-Run the app:
-
-```bash
-streamlit run app.py
-```
-
-The app opens locally at:
-
-```text
-http://localhost:8501
-```
-
----
-
-## Model File Note
-
-The trained model may not be stored directly on GitHub because of file-size limits.
-
-Recommended hosting structure:
-
-```text
-GitHub        = source code, documentation, metrics
-Streamlit App = live demo
-Kaggle        = training notebook and evaluation proof
-```
-
-If the model is missing, follow the instructions in:
-
-```text
-MODEL_DOWNLOAD.md
-```
-
----
-
-## Deployment
-
-The current live version is deployed on Streamlit:
-
-```text
-https://satyalensai.streamlit.app/
-```
-
-For deployment, the required files are:
-
-```text
-app.py
-requirements.txt
-satyalens_v6_efficientnetb0.keras
-satyalens_v6_metrics.json
-label_map.json
-model_card.md
-README.md
-```
-
----
-
 ## Responsible Use
 
 SatyaLens is designed for research, learning, and manual review support.
@@ -379,23 +300,6 @@ It should not be used for:
 - Any decision affecting a person without human review
 
 The project intentionally avoids overclaiming because deepfake detection can fail under real-world conditions.
-
----
-
-## Future Improvements
-
-Planned improvements include:
-
-- Better face detection with MediaPipe or RetinaFace
-- Audio deepfake detection
-- Robustness testing for blur, compression, crop, and lighting changes
-- PDF risk report generation
-- FastAPI inference endpoint
-- Docker deployment
-- ONNX / TFLite export
-- Bias and fairness testing
-- Confidence calibration
-- Live camera review mode
 
 ---
 
@@ -420,15 +324,6 @@ Developed by **Arnav Raj (Cybroarnv)**
 - **GitHub:** [@yocybroarnv](https://github.com/yocybroarnv)
 - **LinkedIn:** [Arnav Raj](https://www.linkedin.com/in/arnav-raj-professional)
 - **Project Type:** Independent AI Security Research Project
-
----
-
-## Resume Line
-
-```text
-SatyaLens: Deepfake Detection and Identity-Risk Estimator | TensorFlow, EfficientNetB0, OpenCV, Streamlit
-Built an AI security-focused computer vision dashboard to detect real vs synthetic face media, aggregate video-frame predictions, extract media metadata, generate Grad-CAM explanations, and estimate passive liveness/spoof-risk signals for deepfake fraud and synthetic identity research.
-```
 
 ---
 
