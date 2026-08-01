@@ -16,7 +16,7 @@
 
 The deployed app is available here:
 
-**SatyaLens AI:** https://satyalensai.streamlit.app/
+**SatyaLens:** https://satyalensai.streamlit.app/
 
 ---
 
